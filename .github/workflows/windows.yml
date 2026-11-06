@@ -1,0 +1,25 @@
+name: Windows development build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm audit --omit=dev
+      - run: npm run dist:dev
+        env:
+          DAYMARK_BUILD_OUTPUT: ${{ github.workspace }}/dist
+
+# No installer uploads: this public repository must not distribute unsigned CI artifacts.

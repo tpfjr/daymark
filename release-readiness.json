@@ -1,0 +1,11 @@
+{
+  "cleanWindowsFirstRun": false,
+  "upgradeAndRestore": false,
+  "sleepLockLogoffReminders": false,
+  "scalingAndAllThemes": false,
+  "realGoogleOutlookImports": false,
+  "publisherAndSupportChosen": true,
+  "privacyAndDistributionTermsApproved": false,
+  "signedInstallerUpgrade": false,
+  "buildDependencyReview": false
+}

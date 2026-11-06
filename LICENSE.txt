@@ -1,0 +1,5 @@
+Copyright (c) 2026 Thomas P. Fausnaught, Jr. All rights reserved.
+
+Daymark is not licensed as open-source software. Its package license identifier
+is UNLICENSED. Third-party components retain their own licenses; see
+THIRD-PARTY-NOTICES.txt and the bundled license files.

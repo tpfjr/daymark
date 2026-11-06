@@ -1,0 +1,3 @@
+const fs=require('node:fs/promises'),path=require('node:path'),{createHash}=require('node:crypto');
+async function verifiedWorker(root,workerFile,electronVersion){let info=JSON.parse(await fs.readFile(path.join(root,'build-info.json'),'utf8'));let [worker,core]=await Promise.all([fs.readFile(workerFile),fs.readFile(path.join(root,'ui','core.js'))]);let hash=b=>createHash('sha256').update(b).digest('hex');if(hash(worker)!==info.workerSha256||hash(core)!==info.coreSha256||electronVersion!==info.electron)throw Error('Daymark files do not match this release. Extract a fresh copy of the full app download. Your planner data has not been opened or changed.');return worker.toString('utf8')}
+module.exports={verifiedWorker};

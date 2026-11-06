@@ -1,0 +1,33 @@
+
+.itemList{max-height:42vh;overflow:auto;margin:14px 0}.itemRow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #d5ddd7}.itemRow>span{flex:1;overflow-wrap:anywhere}.itemRow input[type=checkbox]{width:auto}.itemRow small{display:block;font-size:11px;opacity:.8}#cleanupDialog,#dayTemplateDialog{width:700px}#cleanupAge{width:100px}#themeToggle{margin-bottom:6px}.hours{margin-top:12px}
+:root[data-theme=dark]{color-scheme:dark;color:#e3ede7;background:#131c1a}
+[data-theme=dark] body{background:#131c1a;color:#e3ede7}
+[data-theme=dark] header,[data-theme=dark] .panel,[data-theme=dark] .stat,[data-theme=dark] .calendar,[data-theme=dark] .heads,[data-theme=dark] .times,[data-theme=dark] dialog,[data-theme=dark] #searchResults{background:#1d2a25;color:#e3ede7;border-color:#3d5148}
+[data-theme=dark] button,[data-theme=dark] input,[data-theme=dark] select,[data-theme=dark] textarea{background:#25382f;color:#e3ede7;border-color:#52665a}
+[data-theme=dark] button:hover,[data-theme=dark] button[aria-pressed=true],[data-theme=dark] .heads .selected{background:#365a49;color:#fff}
+[data-theme=dark] .primary{background:#367b5e;color:#fff}
+[data-theme=dark] .block,[data-theme=dark] .task{background:color-mix(in srgb,var(--accent) 25%,#17241e);color:#f0f6f2;border-color:var(--accent)}
+[data-theme=dark] .block small,[data-theme=dark] .task small{color:#d1e1d7}
+[data-theme=dark] .lane{background:repeating-linear-gradient(to bottom,transparent 0,transparent 23px,#2a3d33 23px,#2a3d33 24px);border-color:#3d5148}
+[data-theme=dark] .hourline,[data-theme=dark] .time,[data-theme=dark] .backlogItem,[data-theme=dark] .itemRow{border-color:#3d5148}
+[data-theme=dark] p,[data-theme=dark] .hint,[data-theme=dark] .saved,[data-theme=dark] .label,[data-theme=dark] .time,[data-theme=dark] .stat span,[data-theme=dark] .searchDates small,[data-theme=dark] .searchresult small,[data-theme=dark] #reportSummary small{color:#b9cbc0}
+[data-theme=dark] .eyebrow,[data-theme=dark] h1 span{color:#91c9ac}
+[data-theme=dark] #reportSummary div{background:#293d32}
+[data-theme=dark] .error,[data-theme=dark] .delete,[data-theme=dark] .overdue{color:#ffb3ac}
+[data-theme=dark] .toast{background:#d9eee0;color:#18291e}
+[data-theme=dark] dialog::backdrop{background:#000a}
+
+[data-theme=dark] input::placeholder,[data-theme=dark] textarea::placeholder{color:#a9beb1;opacity:1}[data-theme=dark] .searchbox>label,[data-theme=dark] .backlogItem small,[data-theme=dark] .label{color:#b9cbc0}
+
+.appearanceLabel{margin-right:8px}.reviewBanner{display:block;width:100%;margin:12px 0;text-align:left}.reviewBanner[hidden]{display:none}#dayTemplateList .itemRow{flex-wrap:wrap}#dayTemplateList input{flex:1;min-width:180px}.block strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#outcomeReviewDialog{width:700px}
+.legacy-outcomes{display:none!important}.noteTools{display:flex;gap:6px;flex-wrap:wrap}.noteTools button{font-size:11px;padding:6px 8px}.addNote textarea,.editNote textarea{box-sizing:border-box;width:100%;min-height:90px;resize:vertical}.addNote{margin:12px 0}.dailyNote{display:grid;grid-template-columns:20px 1fr;gap:5px;padding:12px 0;border-bottom:1px solid #d5ddd7}.dailyNote input{align-self:start;width:auto}.dailyNote small{grid-column:2;font-size:11px;opacity:.75}.noteBody{border:0!important;background:transparent!important;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;padding:0!important;font-weight:400;min-width:0}.dailyNote.done .noteBody{text-decoration:line-through;opacity:.75}.dailyNote.linked,.block.linked{outline:3px solid #d89a26!important;outline-offset:2px;background-color:#fff1bb!important;color:#332a11!important}.editNote{max-width:650px}.noteLink{max-width:100%;width:100%}.reminderSettings{margin-top:18px;border-top:1px solid #d5ddd7;padding-top:12px;font-size:12px}#reminderMinutes{width:70px}#dailyNotesPanel .noteDate{max-width:155px}
+:root[data-theme=gray]{--page:#eceeef;--surface:#f8f9fa;--ink:#303842;--edge:#c8ced5;--tint:#dde2e7;--button:#526373}
+:root[data-theme=blue]{--page:#eaf2fa;--surface:#f7fbff;--ink:#243c57;--edge:#bbd0e4;--tint:#d7e8f8;--button:#356a9c}
+:root[data-theme=pink]{--page:#faedf3;--surface:#fff8fb;--ink:#573548;--edge:#e5c3d4;--tint:#f4dce8;--button:#9b4e78}
+:root[data-theme=red]{--page:#f8eeeb;--surface:#fff9f7;--ink:#5a3832;--edge:#e2c4bc;--tint:#f2dcd6;--button:#a45343}
+:root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) body{background:var(--page);color:var(--ink)}
+:root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) :is(header,.panel,.stat,.calendar,.heads,.times,dialog,#searchResults){background:var(--surface);color:var(--ink);border-color:var(--edge)}
+:root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) :is(button,input,textarea,select){background:var(--surface);color:var(--ink);border-color:var(--edge)}
+:root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) :is(button:hover,button[aria-pressed=true],.heads .selected){background:var(--tint)}
+:root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) .primary{background:var(--button);color:white}
+.dailyNoteList{max-height:55vh;overflow:auto;padding:3px}.noteTools{margin-bottom:8px}

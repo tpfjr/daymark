@@ -1,0 +1,16 @@
+Daymark: Copyright (c) 2026 Thomas P. Fausnaught, Jr. All rights reserved.
+
+Electron 45.2.3: MIT license, ELECTRON-LICENSE.txt.
+Electron includes Chromium and Node.js and other third-party components.
+The distributed runtime retains LICENSE and LICENSES.chromium.html, including
+Chromium's complete third-party notices. These files must accompany releases.
+
+ical.js 2.2.1: Mozilla Public License 2.0, ICAL-LICENSE.txt.
+Unmodified source: https://github.com/kewisch/ical.js/tree/v2.2.1
+Its unmodified upstream source accompanies the source/review archive.
+Daymark's calendar worker bundles this library; its adapter is separate code.
+
+Immer 11.2.9: MIT license, IMMER-LICENSE.txt.
+Source: https://github.com/immerjs/immer
+
+These third-party licenses do not grant an open-source license to Daymark.

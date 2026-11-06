@@ -1,0 +1,1 @@
+const fs=require('fs');let p='work/test20.cjs',s=fs.readFileSync(p,'utf8').replace("assert.deepEqual(C.normalize(n).holidayMigrationSeriesIds,['changed']);","assert.deepEqual(C.normalize(n).holidayMigrationSeriesIds,['changed']);assert.deepEqual(C.merge(C.normalize(C.fresh()),n,()=> 'new').data.holidayMigrationSeriesIds,['changed']);");fs.writeFileSync(p,s);

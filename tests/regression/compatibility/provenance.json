@@ -1,0 +1,12 @@
+[
+  {
+    "version": "1.5",
+    "source": "outputs/Daymark-1.5/Daymark-win32-x64/resources/app.asar :: ui/core.js",
+    "sha256": "9ce3562f61f6d75c591c7ae44abfbab17641f6825ba1902b00471c40eac7e5b6"
+  },
+  {
+    "version": "1.5.1",
+    "source": "outputs/Daymark-1.5.1/Daymark-win32-x64/resources/app.asar :: ui/core.js",
+    "sha256": "2d0dcc08ded83e022abb5da9554a64366c4a80ccdb50ad5b3a49cb3d924598b3"
+  }
+]
