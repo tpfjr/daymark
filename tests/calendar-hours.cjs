@@ -1,0 +1,30 @@
+const assert = require('node:assert/strict');
+const C = require('../ui/core.js');
+const P = require('../ui/planning-core.js');
+const data = C.fresh(), cat = Object.keys(data.categories)[0];
+const event = {id:'evening',uid:'evening@example',date:'2026-11-09',allDay:false,title:'Study',notes:'Keep this',start:1140,end:1260};
+const preview = {events:[event]};
+assert.deepEqual(P.applyCalendar(data,preview,cat),{added:1,skipped:0});
+assert.equal(data.end,18);
+assert.deepEqual(P.applyCalendar(data,preview,cat),{added:0,skipped:1});
+assert.equal(data.end,18);
+assert.deepEqual(P.applyCalendar(data,preview,cat,{expandHours:true}),{added:0,skipped:1});
+assert.equal(data.end,21);
+assert.equal(data.days[event.date].blocks.length,1);
+assert.equal(data.days[event.date].blocks[0].notes,'Keep this');
+// Matching title/time with another UID is also a duplicate.
+data.end=18;
+assert.equal(P.applyCalendar(data,{events:[{...event,id:'other',uid:'other@example'}]},cat,{expandHours:true}).skipped,1);
+assert.equal(data.end,21);
+// Preserve edited existing times rather than expanding for stale source times.
+data.days[event.date].blocks[0].start=360;
+data.days[event.date].blocks[0].end=450;
+data.start=8;data.end=18;
+P.applyCalendar(data,preview,cat,{expandHours:true});
+assert.equal(data.start,6);assert.equal(data.end,18);
+const fresh=C.fresh();
+P.applyCalendar(fresh,preview,cat,{expandHours:true});
+assert.equal(fresh.end,21);
+P.applyCalendar(fresh,{events:[{id:'note',date:event.date,allDay:true,title:'Milestone',notes:''}]},cat,{expandHours:true});
+assert.equal(fresh.start,8);assert.equal(fresh.end,21);
+console.log('PASS new and repeated imports, opt-out, equivalent duplicates, edited times and all-day notes');
