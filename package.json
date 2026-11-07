@@ -1,7 +1,7 @@
 {
   "name": "daymark-desktop",
   "productName": "Daymark",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "A personal daily planner with reusable tasks",
   "main": "main.cjs",
   "author": "Thomas P. Fausnaught, Jr.",
