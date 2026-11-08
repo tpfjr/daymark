@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),C=require('../ui/core.js'),P=require('../ui/planning-core.js');
+assert.equal(C.monthDates('2028-02-15').length,29);assert.equal(C.monthDates('2027-02-15').length,28);
+assert.equal(C.shiftMonth('2027-01-31',1),'2027-02-28');assert.equal(C.shiftMonth('2026-12-31',1),'2027-01-31');
+const d=C.fresh(),cat=Object.keys(d.categories)[0],source={id:'old',cat,details:'Read pages 29-36',notes:'Specific notes',start:480,end:540,imported:true,seriesId:'series',backlogId:'task'};
+assert.equal(C.label(d,source),'Read pages 29-36');
+const copy=C.copyBlock(d,source,'2026-11-09',1140,false,()=> 'copy');assert.equal(copy.end,1200);assert.equal(copy.notes,'');assert(!copy.seriesId&&!copy.backlogId);assert.equal(d.end,20);
+assert.throws(()=>C.copyBlock(d,source,'2026-11-09',1420,true,()=> 'bad'));assert.equal(d.days['2026-11-09'].blocks.length,1);
+let event={id:'ics:study:2026-11-09T19:00:00:2026-11-09',uid:'study',date:'2026-11-09',title:'Old evening',notes:'Old',start:1140,end:1260,allDay:false};
+P.applyCalendar(d,{events:[event]},cat);let updated={...event,id:'ics:study:2026-11-09T19:00:00:2026-11-09',title:'Read questions',notes:'New session',end:1200};
+assert.equal(P.applyCalendar(d,{events:[updated]},cat,{expandHours:true,updateMatching:true}).updated,1);
+assert.equal(d.days[event.date].blocks.find(b=>b.id===event.id).notes,'New session');
+assert.equal(P.applyCalendar(d,{events:[updated]},cat,{expandHours:true,updateMatching:true}).skipped,1);
+d.dayTemplates.work={name:'Character',blocks:[{cat,start:540,end:1020,notes:'',details:''}]};
+const result=P.applyTemplates(d,'work','2026-11-09','2026-11-22',[1,2,3,4,5],()=>crypto.randomUUID(),false);assert.equal(result.days,10);assert.equal(result.added,10);
+assert.equal(P.applyTemplates(d,'work','2026-11-09','2026-11-22',[1,2,3,4,5],()=>crypto.randomUUID(),false).skipped,10);
+console.log('PASS month dates, calendar title, independent copy, safe bounds, imported updates and multi-week templates');

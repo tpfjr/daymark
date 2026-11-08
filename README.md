@@ -23,6 +23,31 @@ npm test also runs the historical storage/fault-injection, import and Electron d
 
 ## Install and upgrade
 
+### Planner controls in 1.10.0
+
+- Day, Week, and Month show the same saved calendar. Click a month date to open
+  that day, or an event to edit its session notes. The current-time label updates
+  live; today's day/week column also has a labeled time line.
+- Import calendar: choose a local file, then Import. Display hours expand
+  automatically, the first imported date is selected, and duplicate blocks are
+  skipped. There is no required preview step. Advanced options contain the date
+  range and description settings. All-day events remain daily notes.
+- To import a revised plan, select **Update matching imported blocks**. Matching
+  imported events on the same date receive the file's times, title, notes, and
+  selected task/color; their previous contents can be restored with Undo.
+  Ordinary imports keep existing entries. This is not account synchronization.
+- Imported blocks display their event title without a task-category prefix.
+- Right-click a block to copy with notes or just its task/title and duration.
+  Right-click another time or month date to paste. The paste dialog lets you
+  choose the exact date and start time. Copies are independent, not recurring.
+- Day templates: name a draft, add task/time blocks (or use the selected day's
+  blocks), then Save template. In step 2 choose the saved template, first/last
+  dates and weekdays. Review the listed dates and Apply. Saving alone does not
+  schedule anything; checking weekdays filters the selected date range.
+- Time by task, My day and Keep your history are on the left. Calendar is in
+  the center; task backlog and daily notes are on the right. Narrow windows
+  stack the supporting panels to retain usable calendar space.
+
 Quit the old app via File > Quit. Run the setup EXE. The installer supports per-user
 installation, choosing a directory, in-place upgrades, and uninstall. Planner data
 stays in the existing Daymark user profile. Uninstall is configured to keep it.
