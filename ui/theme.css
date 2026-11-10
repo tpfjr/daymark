@@ -31,3 +31,6 @@
 :root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) :is(button:hover,button[aria-pressed=true],.heads .selected){background:var(--tint)}
 :root:is([data-theme=gray],[data-theme=blue],[data-theme=pink],[data-theme=red]) .primary{background:var(--button);color:white}
 .dailyNoteList{max-height:55vh;overflow:auto;padding:3px}.noteTools{margin-bottom:8px}
+/* Readable secondary text in the calendar, notes pop-out and task tray. */
+:root{font-size:15px}.task{font-size:14px}.task small{font-size:12px;opacity:1}.dailyNote small,.itemRow small{font-size:13px;opacity:1}.dailyNote.done .noteBody{opacity:1;text-decoration:line-through}.backlogItem.done{opacity:1}
+:root:not([data-theme=dark]) :is(.hint,.saved,.label,.category,.panel p,.searchDates small,.searchresult small,.searchcount,.backlogItem small,.stat span,.dailyNote small){color:var(--ink,#455d50)}

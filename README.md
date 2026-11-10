@@ -71,3 +71,47 @@ review counts unique note IDs, completed if any copy in that week is complete.
 Keep THIRD-PARTY-NOTICES.txt, ICAL-LICENSE.txt, IMMER-LICENSE.txt,
 ELECTRON-LICENSE.txt and runtime LICENSE/LICENSES.chromium.html with distributions.
 Electron is pinned at 45.2.3. No automatic update client is bundled.
+
+## Calendar-first layout (1.10)
+
+Plan contains tasks, templates, repeating schedules and reviews. Data contains imports,
+exports and backups. View selects Compact (72 px/hour), Balanced (96, default) or
+Spacious (144). Settings contains appearance, working days, holidays and displayed hours.
+The calendar still snaps to ten minutes; only hour labels are printed. Tasks and Notes
+can be collapsed independently. On narrow windows, Notes moves below the calendar.
+Sidebar and density choices live in `layout.json`, outside planner data, backups and Undo.
+The status bar distinguishes saved planner data from the last confirmed automatic backup.
+No confirmation is shown until the backup worker has successfully protected the state.
+
+Right-click a block for Edit/Delete. Drag its top or bottom edge to resize. Arrow keys
+still move a focused block, Shift+Up/Down adjusts its end, and Delete removes it. New
+blocks allow overlap; new repeating schedules do not skip holidays unless selected.
+Existing blocks and schedules retain their saved choices. Template application includes
+an explicit Allow overlap option for the blocks it adds.
+
+The block editor now has one Block notes field. Existing Details and Notes are shown
+together; saving an unchanged entry preserves both original fields. New short text is
+used as the calendar subtitle, with longer text retained in notes. Task management labels
+default durations in minutes. Deleting a task requires choosing another active task for
+its existing blocks, recurring series, to-dos and templates; Undo restores the change.
+
+### Per-block reminders and schema compatibility
+
+Set Notify me and its lead time (0–1440 minutes) in Edit time block. For a repeating
+schedule, choose Entire repeating series to set its reminder. Templates preserve reminder
+settings. Calendar exports include alarms only for configured blocks. The previous global
+lead-time setting no longer schedules alerts for every block: choose reminders on the
+blocks you want. Windows notifications require the app to remain running. Closing with
+configured reminders hides it to the tray; File > Quit or tray Quit stops reminders.
+Restored reminder-bearing blocks activate the notification service automatically.
+
+Planner schema is now 9 to preserve per-block reminder values. Existing schemas 1–8
+remain importable, with a pre-upgrade backup before database migration. Older builds
+that support only schema 8 reject the upgraded planner instead of dropping reminder data.
+Backup file compression/envelope formats and restoration choices are otherwise unchanged.
+
+Tests use temporary profiles. The UI tests cover menus, both resize edges, task deletion
+and Undo, reminder persistence, all three densities, cross-day moves, keyboard movement,
+task-drop events, theme text contrast and preference restart. The automated task-drop
+check dispatches a native renderer DragEvent; OS-level dragging between separate windows
+and physical display scaling still merit a manual pass before public release.
