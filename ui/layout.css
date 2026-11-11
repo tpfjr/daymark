@@ -10,3 +10,5 @@ body{color:var(--ink)}header{padding:10px 18px;min-height:58px;gap:20px}header h
 .shortBlock .resize{height:2px}.shortBlock{padding-top:0;padding-bottom:0;line-height:1.1}.menuItems label{display:block;padding:8px;font-size:13px}.menuItems select{display:block;margin-top:6px;width:100%}.menuItems .hint{max-width:210px;margin:5px 8px}.time:not(.hour){border:0}.block:hover{filter:brightness(.98)}
 
 .taskrow>button{grid-column:2/4;justify-self:start}
+
+.month-event,.month-notes{font-size:13px}.month-cell.outside-month{opacity:1;background:var(--page)}.month-heads span{align-self:center}.now span{font-size:12px;background:#a63225}.month-grid{align-items:stretch}#blockContextMenu{min-width:230px;max-width:calc(100vw - 16px)}

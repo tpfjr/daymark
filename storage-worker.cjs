@@ -1,4 +1,4 @@
-// Daymark shared core SHA256: 4e7a992fd3646f160ffb4d751f950dfaabe6a2b99bbef43646a4b4fc934aeca5
+// Daymark shared core SHA256: 0f9e9b1472cc301853ea71bc505d3e197a745f2f59bb6cad349939848734db58
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   try {
@@ -159,7 +159,7 @@ var require_core = __commonJS({
       }
       function label(data, b) {
         let name = data.categories[b.cat]?.[0] || "Unknown task";
-        return name + (b.details ? " \xB7 " + b.details : "");
+        return b.imported && b.details ? b.details : name + (b.details ? " \xB7 " + b.details : "");
       }
       function occurrenceId(id, date) {
         return `repeat:${id}:${date}`;
@@ -520,6 +520,26 @@ var require_core = __commonJS({
         }
         return { added, skipped };
       }
+      function monthDates(date) {
+        if (!isDate(date)) throw Error("Choose a valid date.");
+        let first = date.slice(0, 7) + "-01", last = new Date(+date.slice(0, 4), +date.slice(5, 7), 0);
+        return [...dates(first, dateKey(last), 31)];
+      }
+      function shiftMonth(date, delta) {
+        let [y, m, d] = date.split("-").map(Number), next = new Date(y, m - 1 + delta, 1);
+        next.setDate(Math.min(d, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+        let result = dateKey(next);
+        return isDate(result) ? result : date;
+      }
+      function copyBlock(data, source, date, start, includeNotes, uuid) {
+        if (!isDate(date) || !data.categories[source.cat]) throw Error("Choose a valid date and task.");
+        let block = { id: uuid(), cat: source.cat, details: source.details || "", notes: includeNotes ? source.notes || "" : "", start, end: start + source.end - source.start, ...includeNotes ? reminderFields(source) : {}, ...source.imported ? { imported: true } : {}, ...source.allowOverlap ? { allowOverlap: true } : {} };
+        if (!timing(block)) throw Error("The copied block must fit within one day. Choose an earlier start time.");
+        put(data, date, block);
+        data.start = Math.min(data.start, Math.floor(block.start / 60));
+        data.end = Math.max(data.end, Math.ceil(block.end / 60));
+        return block;
+      }
       function carryNotes(data, from, to) {
         if (!isDate(from) || !isDate(to)) throw Error("Choose a supported date.");
         let source = data.days[from]?.dailyNotes || [], target = data.days[to] ??= emptyDay(), count = 0;
@@ -530,7 +550,7 @@ var require_core = __commonJS({
         }
         return count;
       }
-      const api = { carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
+      const api = { monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
       if (typeof module2 !== "undefined") module2.exports = api;
       else root.PlannerCore = api;
     })(globalThis);

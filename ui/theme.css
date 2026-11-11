@@ -34,3 +34,13 @@
 /* Readable secondary text in the calendar, notes pop-out and task tray. */
 :root{font-size:15px}.task{font-size:14px}.task small{font-size:12px;opacity:1}.dailyNote small,.itemRow small{font-size:13px;opacity:1}.dailyNote.done .noteBody{opacity:1;text-decoration:line-through}.backlogItem.done{opacity:1}
 :root:not([data-theme=dark]) :is(.hint,.saved,.label,.category,.panel p,.searchDates small,.searchresult small,.searchcount,.backlogItem small,.stat span,.dailyNote small){color:var(--ink,#455d50)}
+
+#currentTime{font-size:12px;font-weight:600;white-space:nowrap;color:inherit;padding:6px}
+.now{z-index:8;border-top:2px solid #d14935;pointer-events:none}.now span{position:absolute;right:2px;top:-19px;background:#d14935;color:white;border-radius:3px;padding:2px 5px;font-size:10px;white-space:nowrap}
+.month-scroll{max-height:72vh}.month-heads span{padding:0;text-align:center}.month-grid{gap:1px;background:var(--edge,#dce3dc)}
+.month-cell{min-height:145px;min-width:0;padding:6px;background:var(--surface,#fff)}.month-cell.today{box-shadow:inset 0 0 0 2px #39866b}.month-cell.selected{background:var(--tint,#edf5ef)}.month-cell.outside-month{opacity:.55}
+.month-date{border:0;background:transparent;font-weight:700;padding:4px}.month-event{display:block;width:100%;font-size:11px;text-align:left;padding:5px;margin-top:4px;white-space:normal;overflow-wrap:anywhere;border-left:3px solid var(--accent)}.month-notes{font-size:11px;border:0;padding:5px;background:transparent}
+#blockCopyDialog{width:min(440px,90vw)}.context-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}#pasteBlockOptions label{margin:10px 0}.template-step{border-top:1px solid #d5ddd7;padding:14px 0}.template-step h3{margin:0 0 12px}.template-builder{padding:12px;border:1px solid #d5ddd7;border-radius:8px;margin:12px 0}.template-builder textarea{min-height:65px;width:100%}#templateWeekdays{display:flex;flex-wrap:wrap;gap:10px}#templateDraftList{margin:12px 0}.template-step fieldset{margin:12px 0}.template-step>.label input,.template-step>.label select{width:100%}
+[data-theme=dark] .month-cell{background:#1d2a25;color:#e3ede7}[data-theme=dark] .month-cell.selected{background:#365a49}
+
+.month-event.linked{outline:3px solid #d89a26!important;background:#fff1bb!important;color:#332a11!important}
