@@ -4,7 +4,11 @@ function holidayBadge(date) {
   const weekday = t.getDay(), month = t.getMonth() + 1;
   const fixed = {'01-01':['🎉',"New Year’s Day"], '06-19':['✊','Juneteenth National Independence Day'],
     '07-04':['🎆','Independence Day'], '11-11':['🎖️','Veterans Day'], '12-25':['🎄','Christmas Day']};
-  function fixedOn(key) { return key.endsWith('06-19') && +key.slice(0,4)<2021 ? null : fixed[key.slice(5)] }
+  function fixedOn(key) {
+    const y=Number(key.slice(0,4)),md=key.slice(5);
+    if((md==='06-19'&&y<2021)||(md==='11-11'&&y<1978))return null;
+    return fixed[md];
+  }
   let item = fixedOn(date), observed = false;
   if (!item && (weekday === 5 || weekday === 1)) {
     item = fixedOn(C.shift(date,weekday === 5 ? 1 : -1)); observed = !!item;
@@ -14,6 +18,7 @@ function holidayBadge(date) {
     if (month===2 && day>=15 && day<=21) item=['🏛️','Washington’s Birthday'];
     if (month===5 && day>=25) item=['🌺','Memorial Day'];
     if (month===9 && day<=7) item=['🛠️','Labor Day'];
+    if (month===10 && year>=1971 && year<=1977 && day>=22 && day<=28) item=fixed['11-11'];
     if (month===10 && day>=8 && day<=14) item=['🧭','Columbus Day'];
   }
   if (month===11 && weekday===4 && day>=22 && day<=28) item=['🦃','Thanksgiving Day'];
@@ -54,6 +59,24 @@ function matchingEntries(source,date,scope) {
   return rows;
 }
 
+function splitWeekday(target,weekday,id){
+  const original=target.id;
+  const split={...target,id,reminderSource:target.reminderSource||original,weekdays:[weekday]};
+  target.weekdays=target.weekdays.filter(w=>w!==weekday);
+  function remap(key){
+    const origin=key.slice(-10);
+    return C.isDate(origin)&&key===C.occurrenceId(original,origin)&&new Date(origin+'T12:00:00').getDay()===weekday?C.occurrenceId(id,origin):key;
+  }
+  for(const day of Object.values(data.days)){
+    day.omitted=day.omitted.map(remap);
+    for(const note of day.dailyNotes)for(const link of note.links)link.id=remap(link.id);
+    for(const block of day.blocks)if(block.seriesId===original&&remap(block.id)!==block.id){
+      block.id=remap(block.id);block.seriesId=id;
+    }
+  }
+  data.recurrences.push(split);
+  return split;
+}
 function manageSimilar(date,b,action='move') {
   const dialog=$('similarDialog'),scope=$('similarScope'),operation=$('similarOperation');
   scope.value='slot';operation.value=action;
@@ -80,26 +103,13 @@ function manageSimilar(date,b,action='move') {
       for(const row of rows){
         let target=row.series?data.recurrences.find(r=>r.id===row.block.id):data.days[row.date].blocks.find(x=>x.id===row.block.id);
         if(row.series && row.weekday!==null && target.weekdays.length>1){
-          // Split this weekday into an independent series; keep edited/skipped occurrences.
-          const original=target.id;
-          const split={...target,id:uid(),weekdays:[row.weekday]};
-          target.weekdays=target.weekdays.filter(w=>w!==row.weekday);
-          const remap=id=>{
-            const origin=id.slice(-10);
-            return C.isDate(origin)&&new Date(origin+'T12:00:00').getDay()===row.weekday&&id===C.occurrenceId(original,origin)
-              ? C.occurrenceId(split.id,origin):id;
-          };
-          for(const d of Object.values(data.days)){
-            d.omitted=d.omitted.map(remap);
-            for(const n of d.dailyNotes)for(const link of n.links)link.id=remap(link.id);
-            for(const block of d.blocks)if(block.seriesId===original&&remap(block.id)!==block.id){
-              block.id=remap(block.id);block.seriesId=split.id;
-            }
-          }
-          data.recurrences.push(split);target=split;
+          const morning=data.recurrences.find(r=>r.id==='morning:'+target.id);
+          target=splitWeekday(target,row.weekday,uid());
+          const next=(row.weekday+1)%7;
+          if(morning?.weekdays.includes(next)&&morning.weekdays.length>1)splitWeekday(morning,next,'morning:'+target.id);
         }
         if(operation.value==='delete'){
-          if(row.series){data.recurrences=data.recurrences.filter(r=>r.id!==target.id);for(const d of Object.values(data.days))for(const block of d.blocks)if(block.seriesId===target.id)delete block.seriesId}
+          if(row.series)removeSeriesAndExceptions(target.id);
           else C.removeOccurrence(data,row.date,target);
         }else if(operation.value==='notes'){if(target.imported)target.notes=$('similarText').value;else Object.assign(target,entryFields($('similarText').value))}
         else {target.end=newStart+target.end-target.start;target.start=newStart;data.start=Math.min(data.start,Math.floor(newStart/60));data.end=Math.max(data.end,Math.ceil(target.end/60))}
@@ -110,6 +120,19 @@ function manageSimilar(date,b,action='move') {
   dialog.showModal();
 }
 
+function removeSeriesAndExceptions(id){
+  data.recurrences=data.recurrences.filter(r=>r.id!==id);
+  const exceptions=new Set();
+  for(const day of Object.values(data.days)){
+    for(const b of day.blocks)if(b.seriesId===id)exceptions.add(b.id);
+    day.blocks=day.blocks.filter(b=>b.seriesId!==id);
+  }
+  const belongs=key=>exceptions.has(key)||key===C.occurrenceId(id,key.slice(-10));
+  for(const day of Object.values(data.days)){
+    day.omitted=day.omitted.filter(key=>!belongs(key));
+    for(const note of day.dailyNotes)note.links=note.links.filter(link=>!belongs(link.id));
+  }
+}
 function clearPlannerDialog(){
   const dialog=$('clearPlannerDialog');$('clearError').textContent='';dialog.showModal();
   $('confirmClear').onclick=async()=>{
@@ -161,14 +184,15 @@ function setupSelection(){
   grid.addEventListener('pointerup',finish);grid.addEventListener('pointercancel',()=>{finish();reset()});
   $('cancelSelection').onclick=reset;
   $('removeSelection').onclick=()=>{
-    const rows=[...grid.querySelectorAll('.multiSelected')].map(el=>{const date=el.closest('[data-date]').dataset.date;return {date,b:C.blocks(data,date).find(b=>b.id===el.dataset.id)}});
+    const rows=[...grid.querySelectorAll('.multiSelected')].map(el=>{const date=el.closest('[data-date]')?.dataset.date;return {date,b:date&&C.blocks(data,date).find(b=>b.id===el.dataset.id)}}).filter(row=>row.b);
+    if(!rows.length){reset();return}
     if(!confirm('Delete '+rows.length+' selected occurrences?'))return;
     mutate(()=>rows.forEach(({date,b})=>C.removeOccurrence(data,date,b)));reset();
   };
 }
 $('saveDateTemplate').onclick=()=>templateFromDate(true);
 $('applyDateTemplate').onclick=()=>templateFromDate(false);
-$('openDate').onclick=()=>{$('dateActions').close();view='day';render()};
+$('openDate').onclick=()=>{$('dateActions').close();openCalendarDay(selected)};
 $('editSimilar').onclick=()=>manageSimilar(editingDate,editing);
 $('clearPlanner').onclick=clearPlannerDialog;
 setupSelection();

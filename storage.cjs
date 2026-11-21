@@ -29,10 +29,10 @@ class PlannerStorage{
  checkpointFiles(pool){
    const entries=[];
    for(const file of fs.readdirSync(this.backups)){
-     const match=/^before-(restore|clear)-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)(?:-(\d+))?\.json\.gz$/.exec(file);
-     if(match&&match[1]===pool)entries.push({file,stamp:match[2],sequence:Number(match[3]||0)});
+     const match=/^before-(restore|clear)-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)(?:-(n?)(\d+))?\.json\.gz$/.exec(file);
+     if(match&&match[1]===pool)entries.push({file,stamp:match[2],order:match[3]==='n'?Number(match[4]):0,sequence:Number(match[4]||0)});
    }
-   return entries.sort((a,b)=>a.stamp===b.stamp?b.sequence-a.sequence:a.stamp>b.stamp?-1:1);
+   return entries.sort((a,b)=>b.order-a.order||(a.stamp===b.stamp?b.sequence-a.sequence:a.stamp>b.stamp?-1:1));
  }
  pruneCheckpoints(protectedFile){
    for(const pool of ['restore','clear']){
@@ -40,7 +40,10 @@ class PlannerStorage{
      if(protectedFile&&ordered.some(entry=>entry.file===protectedFile))keep.add(protectedFile);
      for(const {file} of ordered){
        if(keep.size<20)keep.add(file);
-       if(!keep.has(file))fs.unlinkSync(path.join(this.backups,file));
+       if(!keep.has(file)){
+         try{fs.unlinkSync(path.join(this.backups,file))}
+         catch(error){if(error.code!=='ENOENT')this.backupStatus(Error('Older backup retained; cleanup will retry: '+error.message))}
+       }
      }
    }
  }
@@ -51,8 +54,8 @@ class PlannerStorage{
    const equal=require('node:util').isDeepStrictEqual;
    if(mode==='clear-all'&&equal(Core.normalize(this.cache),Core.normalize(Core.fresh())))return {ok:true,empty:true};
    const pool=clear?'clear':'restore',stamp=this.clock().toISOString().replace(/[:.]/g,'-');
-   const latest=this.checkpointFiles(pool).find(entry=>entry.stamp===stamp);
-   const name='before-'+pool+'-'+stamp+(latest?'-'+(latest.sequence+1):'');
+   const newest=this.checkpointFiles(pool)[0];
+   const name='before-'+pool+'-'+stamp+'-n'+((newest?.order||0)+1);
    const file=path.join(this.backups,name+'.json.gz');
    this.backupNamed(name,this.cache);
    try{

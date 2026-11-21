@@ -63,6 +63,25 @@ test('a backward clock change cannot prune the just-verified checkpoint', async 
   const restored=await prepareImport(path.join(store.backups,file));
   assert.equal(restored.choices[0].data.days['2026-11-21'].blocks[0].notes,'Last change before clear');
 });
+test('successive real checkpoints survive older writes with future timestamps', t => {
+  const store=storeFor(t);
+  store.clock=()=>new Date('2027-01-01T12:00:00Z');
+  for(let i=0;i<20;i++)store.checkpoint('clear-calendar');
+  store.clock=()=>new Date('2026-11-21T12:00:00Z');
+  for(let i=0;i<3;i++)store.checkpoint('clear-calendar');
+  store.pruneCheckpoints();
+  assert.equal(fs.readdirSync(store.backups).filter(f=>f.startsWith('before-clear-2026-11-21')).length,3);
+});
+test('retention can retry a locked older file after successful verification', t=>{
+  const store=storeFor(t);for(let i=0;i<20;i++)store.checkpoint('clear-calendar');
+  const unlink=fs.unlinkSync;
+  try{
+    fs.unlinkSync=file=>{if(path.basename(file).startsWith('before-clear-'))throw Object.assign(Error('file busy'),{code:'EBUSY'});unlink(file)};
+    assert.equal(store.checkpoint('clear-calendar').ok,true);
+  }finally{fs.unlinkSync=unlink}
+  store.pruneCheckpoints();
+  assert.equal(fs.readdirSync(store.backups).filter(f=>f.startsWith('before-clear-')).length,20);
+});
 test('repeated empty clears preserve the last meaningful clear checkpoint', t => {
   const store = storeFor(t);
   store.checkpoint('clear-calendar');

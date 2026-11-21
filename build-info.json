@@ -2,5 +2,5 @@
   "version": "1.12.0",
   "electron": "45.2.3",
   "coreSha256": "d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b",
-  "workerSha256": "9f006b0f6f092e5ed157ae8464fab7b93aede42f817bdcef13b21c197c5cd42b"
+  "workerSha256": "6614b1c88008b7fa5cff527f215cf519ca0feb122610685c9ac97d16cd4aa7d0"
 }
