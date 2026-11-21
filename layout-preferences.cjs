@@ -1,0 +1,5 @@
+const fs=require('node:fs/promises'),path=require('node:path');
+const defaults={leftOpen:true,rightOpen:true,density:'balanced'};
+function validate(v){if(!v||typeof v.leftOpen!=='boolean'||typeof v.rightOpen!=='boolean'||!['compact','balanced','spacious'].includes(v.density))throw Error('Invalid layout preference');return {leftOpen:v.leftOpen,rightOpen:v.rightOpen,density:v.density}}
+class LayoutPreferences{constructor(dir){this.file=path.join(dir,'layout.json');this.queue=Promise.resolve()}async load(){try{return validate(JSON.parse(await fs.readFile(this.file,'utf8')))}catch(e){if(e.code!=='ENOENT'&&!(e instanceof SyntaxError)&&e.message!=='Invalid layout preference')throw e;return {...defaults}}}async save(value){let v=validate(value);this.queue=this.queue.catch(()=>{}).then(async()=>{await fs.mkdir(path.dirname(this.file),{recursive:true});await fs.writeFile(this.file+'.tmp',JSON.stringify(v));await fs.rename(this.file+'.tmp',this.file)});await this.queue;return v}}
+module.exports={LayoutPreferences,validate,defaults};

@@ -56,7 +56,12 @@
           return { blocks: [], dailyNotes: [], priorities: ["", "", ""], reflection: "", omitted: [], outcomeDone: [false, false, false], outcomeHandled: [false, false, false], outcomeIds: ["", "", ""], carriedTo: ["", "", ""] };
         }
         function fresh() {
-          return { version: 8, start: 8, end: 18, categories: clone2(defaults), taskSettings: {}, recurrences: [], backlog: {}, daysOff: [], dayTemplates: {}, yearlyDaysOff: [], holidayNames: { dates: {}, yearly: {} }, completionLog: {}, workingDays: [1, 2, 3, 4, 5], days: {} };
+          return { version: 9, start: 8, end: 18, categories: clone2(defaults), taskSettings: {}, recurrences: [], backlog: {}, daysOff: [], dayTemplates: {}, yearlyDaysOff: [], holidayNames: { dates: {}, yearly: {} }, completionLog: {}, workingDays: [1, 2, 3, 4, 5], days: {} };
+        }
+        function reminderFields(b) {
+          if (b.reminderMinutes === void 0) return {};
+          if (!Number.isInteger(b.reminderMinutes) || b.reminderMinutes < 0 || b.reminderMinutes > 1440) throw Error("Invalid reminder: choose 0\u20131440 whole minutes.");
+          return { reminderMinutes: b.reminderMinutes };
         }
         function timing(b) {
           return Number.isInteger(b.start) && Number.isInteger(b.end) && b.start >= 0 && b.end <= 1440 && (b.imported === true || b.start % 10 === 0 && b.end % 10 === 0) && b.end > b.start;
@@ -64,15 +69,15 @@
         function normalizeUnsafe(input) {
           if (!input) return fresh();
           let v = clone2(input);
-          if (Number.isInteger(v.version) && v.version > 8) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
-          if (![1, 2, 3, 4, 5, 6, 7, 8].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
+          if (Number.isInteger(v.version) && v.version > 9) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
+          if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
           let categories = v.categories || { ...defaults, ...legacy };
           if (!Object.keys(categories).length) throw Error("No tasks found.");
           for (let [k, c] of Object.entries(categories)) {
             if (["__proto__", "constructor", "prototype"].includes(k) || !Array.isArray(c) || c.length !== 3 || typeof c[0] !== "string" || !c[0].trim() || c[0].length > 60 || !/^#[a-f\d]{6}$/i.test(c[1]) || !/^#[a-f\d]{6}$/i.test(c[2])) throw Error("Invalid task in backup.");
             if (k === "break" && c[0] === "Breaks") c[0] = "Break";
           }
-          let out = { version: 8, start: v.start, end: v.end, categories, taskSettings: {}, recurrences: [], backlog: {}, workingDays: Array.isArray(v.workingDays) && v.workingDays.length ? v.workingDays.filter((x) => Number.isInteger(x) && x >= 0 && x <= 6) : [1, 2, 3, 4, 5], days: {}, migrationIssues: v.migrationIssues || 0 };
+          let out = { version: 9, start: v.start, end: v.end, categories, taskSettings: {}, recurrences: [], backlog: {}, workingDays: Array.isArray(v.workingDays) && v.workingDays.length ? v.workingDays.filter((x) => Number.isInteger(x) && x >= 0 && x <= 6) : [1, 2, 3, 4, 5], days: {}, migrationIssues: v.migrationIssues || 0 };
           out.holidayNames = { dates: {}, yearly: {} };
           for (let kind of ["dates", "yearly"]) for (let [date, name] of Object.entries(v.holidayNames?.[kind] || {})) {
             if (!isDate(kind === "yearly" ? "2000-" + date : date) || typeof name !== "string" || name.length > 1e3) continue;
@@ -93,7 +98,7 @@
             out.dayTemplates[id] = { name: t.name, blocks: t.blocks.map((b) => {
               if (!Object.hasOwn(categories, b.cat)) throw Error("Template " + t.name + " uses missing task category " + b.cat + ". Reassign its blocks before removing that task.");
               if (!timing(b) || typeof (b.details ?? "") !== "string" || typeof (b.notes ?? "") !== "string") throw Error("Invalid template block.");
-              return { cat: b.cat, details: b.details || "", notes: b.notes || "", start: b.start, end: b.end, ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {} };
+              return { cat: b.cat, details: b.details || "", notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {} };
             }) };
           }
           for (let [id, t] of Object.entries(v.backlog || {})) {
@@ -118,7 +123,7 @@
               seen.add(b.id);
               let name = categories[b.cat][0], details = b.details ?? (b.title === name || b.cat === "break" && b.title === "Breaks" ? "" : b.title || "");
               if (typeof details !== "string") throw Error("Invalid entry details.");
-              day.blocks.push({ id: b.id, cat: b.cat, details, notes: b.notes || "", start: b.start, end: b.end, ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {}, ...b.seriesId ? { seriesId: b.seriesId } : {}, ...b.backlogId ? { backlogId: b.backlogId } : {}, ...typeof b.taskDone === "boolean" ? { taskDone: b.taskDone } : {} });
+              day.blocks.push({ id: b.id, cat: b.cat, details, notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {}, ...b.seriesId ? { seriesId: b.seriesId } : {}, ...b.backlogId ? { backlogId: b.backlogId } : {}, ...typeof b.taskDone === "boolean" ? { taskDone: b.taskDone } : {} });
             }
             if (legacyCandidates.length || d.legacyActual) day.legacyActual = [];
             let quarantine = Array.isArray(d.legacyQuarantine) ? clone2(d.legacyQuarantine) : [];
@@ -158,7 +163,7 @@
           for (let r of v.recurrences || []) {
             if (typeof r.id !== "string" || out.recurrences.some((x) => x.id === r.id) || !Object.hasOwn(categories, r.cat) || !timing(r) || !isDate(r.startDate) || r.endDate && (!isDate(r.endDate) || r.endDate < r.startDate) || !Array.isArray(r.weekdays) || !r.weekdays.length || r.weekdays.some((w) => !Number.isInteger(w) || w < 0 || w > 6) || typeof (r.details ?? "") !== "string" || typeof (r.notes ?? "") !== "string") throw Error("Invalid recurring schedule.");
             if (r.allowOverlap !== true) delete r.allowOverlap;
-            out.recurrences.push({ ...r, skipDaysOff: r.skipDaysOff !== false, details: r.details || "", notes: r.notes || "", weekdays: [...new Set(r.weekdays)] });
+            out.recurrences.push({ ...r, ...reminderFields(r), skipDaysOff: r.skipDaysOff !== false, details: r.details || "", notes: r.notes || "", weekdays: [...new Set(r.weekdays)] });
           }
           let affected = new Set(Array.isArray(v.holidayMigrationSeriesIds) ? v.holidayMigrationSeriesIds.filter((id) => out.recurrences.some((r) => r.id === id && r.skipDaysOff)) : []);
           for (let r of v.recurrences || []) if (r.skipDaysOff === void 0 && seriesHitsHoliday(out, r)) affected.add(r.id);
@@ -197,7 +202,7 @@
           let d = data.days[date] || emptyDay(), result = d.blocks.slice();
           for (let r of data.recurrences) {
             let id = occurrenceId(r.id, date);
-            if (applies(r, date) && !(r.skipDaysOff && isDayOff(data, date, off)) && !d.omitted.includes(id) && !result.some((b) => b.id === id)) result.push({ id, cat: r.cat, details: r.details, notes: r.notes, start: r.start, end: r.end, seriesId: r.id, ...r.imported ? { imported: true } : {}, ...r.allowOverlap === true ? { allowOverlap: true } : {}, generated: true });
+            if (applies(r, date) && !(r.skipDaysOff && isDayOff(data, date, off)) && !d.omitted.includes(id) && !result.some((b) => b.id === id)) result.push({ id, cat: r.cat, details: r.details, notes: r.notes, start: r.start, end: r.end, seriesId: r.id, ...reminderFields(r), ...r.imported ? { imported: true } : {}, ...r.allowOverlap === true ? { allowOverlap: true } : {}, generated: true });
           }
           return result.sort((a, b) => a.start - b.start);
         }
@@ -519,7 +524,7 @@
           return remove.size;
         }
         function captureDayTemplate(data, date, name) {
-          return { name, blocks: blocks(data, date).map(({ cat, details, notes, start, end, allowOverlap, imported }) => ({ cat, details, notes, start, end, ...imported ? { imported: true } : {}, ...allowOverlap === true ? { allowOverlap: true } : {} })) };
+          return { name, blocks: blocks(data, date).map(({ cat, details, notes, start, end, allowOverlap, imported, reminderMinutes }) => ({ cat, details, notes, start, end, ...reminderFields({ reminderMinutes }), ...imported ? { imported: true } : {}, ...allowOverlap === true ? { allowOverlap: true } : {} })) };
         }
         function applyDayTemplate(data, id, date, uuid) {
           let template = data.dayTemplates?.[id];
@@ -549,7 +554,7 @@
         }
         function copyBlock(data, source, date, start, includeNotes, uuid) {
           if (!isDate(date) || !data.categories[source.cat]) throw Error("Choose a valid date and task.");
-          let block = { id: uuid(), cat: source.cat, details: source.details || "", notes: includeNotes ? source.notes || "" : "", start, end: start + source.end - source.start, ...source.imported ? { imported: true } : {}, ...source.allowOverlap ? { allowOverlap: true } : {} };
+          let block = { id: uuid(), cat: source.cat, details: source.details || "", notes: includeNotes ? source.notes || "" : "", start, end: start + source.end - source.start, ...includeNotes ? reminderFields(source) : {}, ...source.imported ? { imported: true } : {}, ...source.allowOverlap ? { allowOverlap: true } : {} };
           if (!timing(block)) throw Error("The copied block must fit within one day. Choose an earlier start time.");
           put(data, date, block);
           data.start = Math.min(data.start, Math.floor(block.start / 60));

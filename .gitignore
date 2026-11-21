@@ -45,3 +45,5 @@ backups/
 *.sqlite3-*
 *.json.previous
 *.json.tmp
+
+layout.json
