@@ -26,7 +26,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
    await p.waitForFunction(()=>!document.querySelector('#clearPlannerDialog').open);
    assert.equal(await p.locator('.block').count(),0);
    assert.equal(await p.evaluate(()=>day(selected).dailyNotes[0].text),'Preserve me');
-   const backup=fs.readdirSync(path.join(profile,'backups')).find(name=>name.startsWith('before-restore'));
+   const backup=fs.readdirSync(path.join(profile,'backups')).find(name=>name.startsWith('before-clear'));
    const state=JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(profile,'backups',backup))));
    assert.equal(Object.values(state.days).flatMap(d=>d.blocks).length,2);
    await p.evaluate(()=>{mutate(()=>{data.start=8;data.end=18;const cat='ms';for(const start of [540,600])C.put(data,selected,{id:uid(),cat,details:'Test',notes:'',start,end:start+30})})});

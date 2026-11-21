@@ -10,3 +10,7 @@
 - A finish earlier than the start creates two adjacent blocks. For example 11 PM–7 AM creates 11 PM–midnight and midnight–7 AM the following date. Each part can subsequently be edited independently. Weekly repetition creates two weekday schedules. The initial reminder is on the evening part. Saving expands the displayed hours to show both parts.
 - Daily notes have a direct delete button. Planner Undo restores the deletion.
 - Data → Clear planner offers scheduled blocks/series only, or all planner content. The app flushes edits and requires a confirmed restorable checkpoint before clearing. The calendar-only option preserves notes, templates and tasks. App preferences and backup files are separate.
+
+Clear reads the new gzip back from disk, compares it to the saved planner and checks that the normal backup-format validator accepts it within restore size limits. A failed check stops the clear. An empty clear creates no checkpoint. The automatic backups folder keeps the latest 20 pre-clear files (`before-clear-*.json.gz`) separately from the 20 before-restore files. Existing backups retain their names and restore as before.
+
+Deleting an imported timed occurrence records its import ID on that date. Importing the same calendar again skips the deleted occurrence. Undo restores it. Deletions made in older builds have no recorded ID to match.

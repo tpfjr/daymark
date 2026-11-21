@@ -1,4 +1,4 @@
-// Daymark shared core SHA256: 0f9e9b1472cc301853ea71bc505d3e197a745f2f59bb6cad349939848734db58
+// Daymark shared core SHA256: d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   try {
@@ -191,11 +191,12 @@ var require_core = __commonJS({
       function removeOccurrence(data, date, b) {
         let d = data.days[date] ??= emptyDay();
         d.blocks = d.blocks.filter((x) => x.id !== b.id);
-        if (b.seriesId && !d.omitted.includes(b.id)) d.omitted.push(b.id);
+        if ((b.seriesId || b.imported && b.id.startsWith("ics:")) && !d.omitted.includes(b.id)) d.omitted.push(b.id);
       }
       function put(data, date, b) {
         let d = data.days[date] ??= emptyDay();
         d.blocks = d.blocks.filter((x) => x.id !== b.id);
+        if (b.imported && !b.seriesId && d.omitted.includes(b.id)) d.omitted = d.omitted.filter((id) => id !== b.id);
         let copy = { ...b };
         delete copy.generated;
         d.blocks.push(copy);
@@ -634,7 +635,7 @@ var require_external_backup = __commonJS({
         }
         const now = Date.now(), DAY = 864e5;
         for (let name of fs.readdirSync(this.folder)) {
-          let match = /^(intraday|checkpoint|daily|monthly|before-restore)-(\d{4}-\d{2})(?:-(\d{2}))?/.exec(name);
+          let match = /^(intraday|checkpoint|daily|monthly|before-restore|before-clear)-(\d{4}-\d{2})(?:-(\d{2}))?/.exec(name);
           if (!match || !name.endsWith(".json.gz")) continue;
           let ageLimit = ["intraday", "checkpoint"].includes(match[1]) ? 7 * DAY : match[1] === "daily" ? 30 * DAY : match[1] === "monthly" ? 400 * DAY : 90 * DAY;
           let stamp = Date.parse(match[2] + "-" + (match[3] || "01") + "T00:00:00Z");
@@ -646,6 +647,91 @@ var require_external_backup = __commonJS({
       }
     };
     module2.exports = { ExternalBackup };
+  }
+});
+
+// backup-import.cjs
+var require_backup_import = __commonJS({
+  "backup-import.cjs"(exports2, module2) {
+    var fs = require("node:fs/promises");
+    var { Transform, Writable } = require("node:stream");
+    var { pipeline } = require("node:stream/promises");
+    var { createGunzip } = require("node:zlib");
+    var LIMITS = Object.freeze({ compressed: 32 * 1024 * 1024, expanded: 64 * 1024 * 1024, timeout: 3e4 });
+    function limit(bytes, message) {
+      let total = 0;
+      return new Transform({ transform(chunk, encoding, done) {
+        total += chunk.length;
+        done(total > bytes ? Object.assign(Error(message), { code: "BACKUP_LIMIT" }) : null, chunk);
+      } });
+    }
+    async function readBackup(file) {
+      let handle, source, decoder, timer;
+      try {
+        handle = await fs.open(file, "r");
+        let stat = await handle.stat();
+        if (!stat.isFile()) throw Error("Choose a regular backup file.");
+        let header = Buffer.alloc(2);
+        await handle.read(header, 0, 2, 0);
+        let compressed = /\.gz$/i.test(file) || header[0] === 31 && header[1] === 139, max = compressed ? LIMITS.compressed : LIMITS.expanded;
+        if (stat.size > max) throw Object.assign(Error("Backup file exceeds the " + max / 1024 / 1024 + " MiB " + (compressed ? "compressed " : "") + "size limit."), { code: "BACKUP_LIMIT" });
+        source = handle.createReadStream({ start: 0, autoClose: false });
+        let chunks = [], total = 0, sink = new Writable({ write(chunk, encoding, done) {
+          chunks.push(chunk);
+          total += chunk.length;
+          done();
+        } }), streams = [source, limit(max, "Backup file grew beyond the size limit.")];
+        if (compressed) {
+          decoder = createGunzip();
+          streams.push(decoder, limit(LIMITS.expanded, "Decompressed backup exceeds the 64 MiB limit."));
+        }
+        streams.push(sink);
+        timer = setTimeout(() => source.destroy(Object.assign(Error("Backup import exceeded the 30-second time limit."), { code: "BACKUP_LIMIT" })), LIMITS.timeout);
+        timer.unref?.();
+        await pipeline(...streams);
+        let json;
+        try {
+          json = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, total));
+        } catch {
+          throw Error("Backup contains invalid UTF-8 text.");
+        }
+        let envelope;
+        try {
+          envelope = JSON.parse(json);
+        } catch {
+          throw Error("Backup contains invalid JSON.");
+        }
+        if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) throw Error("Backup must contain a valid Daymark planner or recovery export.");
+        return { json, envelope };
+      } catch (e) {
+        if (e.code?.startsWith("Z_")) throw Error("Backup gzip data is malformed or incomplete.");
+        throw e;
+      } finally {
+        clearTimeout(timer);
+        source?.destroy();
+        decoder?.destroy();
+        await handle?.close();
+      }
+    }
+    async function prepareImport(file) {
+      const Core = require_core();
+      let { envelope } = await readBackup(file);
+      if (envelope.format !== "daymark-recovery") return { choices: [{ key: "normal", data: Core.normalize(envelope) }] };
+      if (envelope.formatVersion !== 1) throw Error("This recovery export needs a newer version of Daymark. Update Daymark before opening it.");
+      let choices = [], versionError;
+      for (let [key, label] of [["confirmed", "Last confirmed saved state"], ["pending", "Pending changes (not confirmed saved)"]]) {
+        if (!envelope[key]?.state) continue;
+        try {
+          choices.push({ key, label, data: Core.normalize(envelope[key].state) });
+        } catch (e) {
+          if (e.code === "NEWER_VERSION") versionError = e;
+        }
+      }
+      if (!choices.length && versionError) throw versionError;
+      if (!choices.length) throw Error("This recovery export contains no valid restorable state.");
+      return { choices };
+    }
+    module2.exports = { readBackup, prepareImport, LIMITS };
   }
 });
 
@@ -1054,16 +1140,46 @@ var require_storage = __commonJS({
         let offset = Math.max(0, +value.offset || 0);
         return { items: value.all ? matches : matches.slice(offset, offset + 100), total: matches.length, virtualTo };
       }
-      pruneCheckpoints() {
-        let files = fs.readdirSync(this.backups).filter((f) => /^before-restore-.*\.json\.gz$/.test(f)).sort().reverse();
-        for (let name of files.slice(20)) fs.unlinkSync(path.join(this.backups, name));
+      checkpointFiles(pool) {
+        const entries = [];
+        for (const file of fs.readdirSync(this.backups)) {
+          const match = /^before-(restore|clear)-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)(?:-(\d+))?\.json\.gz$/.exec(file);
+          if (match && match[1] === pool) entries.push({ file, stamp: match[2], sequence: Number(match[3] || 0) });
+        }
+        return entries.sort((a, b) => a.stamp === b.stamp ? b.sequence - a.sequence : a.stamp > b.stamp ? -1 : 1);
       }
-      checkpoint() {
-        const base = "before-restore-" + this.clock().toISOString().replace(/[:.]/g, "-");
-        let name = base, sequence = 0;
-        while (fs.existsSync(path.join(this.backups, name + ".json.gz"))) name = base + "-" + ++sequence;
+      pruneCheckpoints(protectedFile) {
+        for (const pool of ["restore", "clear"]) {
+          const ordered = this.checkpointFiles(pool), keep = /* @__PURE__ */ new Set();
+          if (protectedFile && ordered.some((entry) => entry.file === protectedFile)) keep.add(protectedFile);
+          for (const { file } of ordered) {
+            if (keep.size < 20) keep.add(file);
+            if (!keep.has(file)) fs.unlinkSync(path.join(this.backups, file));
+          }
+        }
+      }
+      checkpoint(mode) {
+        const clear = mode === "clear-all" || mode === "clear-calendar";
+        if (mode === "clear-calendar" && !this.cache.recurrences.length && !Object.values(this.cache.days).some((day) => day.blocks.length))
+          return { ok: true, empty: true };
+        const equal = require("node:util").isDeepStrictEqual;
+        if (mode === "clear-all" && equal(Core.normalize(this.cache), Core.normalize(Core.fresh()))) return { ok: true, empty: true };
+        const pool = clear ? "clear" : "restore", stamp = this.clock().toISOString().replace(/[:.]/g, "-");
+        const latest = this.checkpointFiles(pool).find((entry) => entry.stamp === stamp);
+        const name = "before-" + pool + "-" + stamp + (latest ? "-" + (latest.sequence + 1) : "");
+        const file = path.join(this.backups, name + ".json.gz");
         this.backupNamed(name, this.cache);
-        this.pruneCheckpoints();
+        try {
+          const { LIMITS } = require_backup_import();
+          if (fs.statSync(file).size > LIMITS.compressed) throw Error("File exceeds the compressed restore limit.");
+          const bytes = zlib.gunzipSync(fs.readFileSync(file), { maxOutputLength: LIMITS.expanded });
+          if (!bytes.equals(Buffer.from(JSON.stringify(this.cache)))) throw Error("File contents differ from the saved planner.");
+          Core.normalize(JSON.parse(bytes.toString("utf8")));
+        } catch (error) {
+          fs.rmSync(file, { force: true });
+          throw Error("Could not verify the backup. " + error.message);
+        }
+        this.pruneCheckpoints(path.basename(file));
         return { ok: true };
       }
       close() {
@@ -1080,91 +1196,6 @@ var require_storage = __commonJS({
   }
 });
 
-// backup-import.cjs
-var require_backup_import = __commonJS({
-  "backup-import.cjs"(exports2, module2) {
-    var fs = require("node:fs/promises");
-    var { Transform, Writable } = require("node:stream");
-    var { pipeline } = require("node:stream/promises");
-    var { createGunzip } = require("node:zlib");
-    var LIMITS = Object.freeze({ compressed: 32 * 1024 * 1024, expanded: 64 * 1024 * 1024, timeout: 3e4 });
-    function limit(bytes, message) {
-      let total = 0;
-      return new Transform({ transform(chunk, encoding, done) {
-        total += chunk.length;
-        done(total > bytes ? Object.assign(Error(message), { code: "BACKUP_LIMIT" }) : null, chunk);
-      } });
-    }
-    async function readBackup(file) {
-      let handle, source, decoder, timer;
-      try {
-        handle = await fs.open(file, "r");
-        let stat = await handle.stat();
-        if (!stat.isFile()) throw Error("Choose a regular backup file.");
-        let header = Buffer.alloc(2);
-        await handle.read(header, 0, 2, 0);
-        let compressed = /\.gz$/i.test(file) || header[0] === 31 && header[1] === 139, max = compressed ? LIMITS.compressed : LIMITS.expanded;
-        if (stat.size > max) throw Object.assign(Error("Backup file exceeds the " + max / 1024 / 1024 + " MiB " + (compressed ? "compressed " : "") + "size limit."), { code: "BACKUP_LIMIT" });
-        source = handle.createReadStream({ start: 0, autoClose: false });
-        let chunks = [], total = 0, sink = new Writable({ write(chunk, encoding, done) {
-          chunks.push(chunk);
-          total += chunk.length;
-          done();
-        } }), streams = [source, limit(max, "Backup file grew beyond the size limit.")];
-        if (compressed) {
-          decoder = createGunzip();
-          streams.push(decoder, limit(LIMITS.expanded, "Decompressed backup exceeds the 64 MiB limit."));
-        }
-        streams.push(sink);
-        timer = setTimeout(() => source.destroy(Object.assign(Error("Backup import exceeded the 30-second time limit."), { code: "BACKUP_LIMIT" })), LIMITS.timeout);
-        timer.unref?.();
-        await pipeline(...streams);
-        let json;
-        try {
-          json = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, total));
-        } catch {
-          throw Error("Backup contains invalid UTF-8 text.");
-        }
-        let envelope;
-        try {
-          envelope = JSON.parse(json);
-        } catch {
-          throw Error("Backup contains invalid JSON.");
-        }
-        if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) throw Error("Backup must contain a valid Daymark planner or recovery export.");
-        return { json, envelope };
-      } catch (e) {
-        if (e.code?.startsWith("Z_")) throw Error("Backup gzip data is malformed or incomplete.");
-        throw e;
-      } finally {
-        clearTimeout(timer);
-        source?.destroy();
-        decoder?.destroy();
-        await handle?.close();
-      }
-    }
-    async function prepareImport(file) {
-      const Core = require_core();
-      let { envelope } = await readBackup(file);
-      if (envelope.format !== "daymark-recovery") return { choices: [{ key: "normal", data: Core.normalize(envelope) }] };
-      if (envelope.formatVersion !== 1) throw Error("This recovery export needs a newer version of Daymark. Update Daymark before opening it.");
-      let choices = [], versionError;
-      for (let [key, label] of [["confirmed", "Last confirmed saved state"], ["pending", "Pending changes (not confirmed saved)"]]) {
-        if (!envelope[key]?.state) continue;
-        try {
-          choices.push({ key, label, data: Core.normalize(envelope[key].state) });
-        } catch (e) {
-          if (e.code === "NEWER_VERSION") versionError = e;
-        }
-      }
-      if (!choices.length && versionError) throw versionError;
-      if (!choices.length) throw Error("This recovery export contains no valid restorable state.");
-      return { choices };
-    }
-    module2.exports = { readBackup, prepareImport, LIMITS };
-  }
-});
-
 // worker-entry.cjs
 var { parentPort, workerData } = require("node:worker_threads");
 var { PlannerStorage } = require_storage();
@@ -1178,7 +1209,7 @@ try {
 parentPort.on("message", async ({ id, method, value }) => {
   try {
     if (startError) throw Error(startError);
-    let result = method === "external-status" ? storage.external.status() : method === "external-configure" ? (storage.external.configure(value), storage.backupDirty = true, storage.flushRecent(), storage.external.status()) : method === "external-disable" ? storage.external.disable() : method === "import-backup" ? await require_backup_import().prepareImport(value) : method === "legacy-theme" ? storage.legacyTheme : method === "read" ? { ...storage.cache, ...storage.legacyTheme ? { theme: storage.legacyTheme } : {} } : method === "save" ? storage.save(value) : method === "patch" ? storage.patch(value) : method === "search" ? storage.search(value) : method === "checkpoint" ? storage.checkpoint() : method === "flush-backups" ? storage.flushRecent() : null;
+    let result = method === "external-status" ? storage.external.status() : method === "external-configure" ? (storage.external.configure(value), storage.backupDirty = true, storage.flushRecent(), storage.external.status()) : method === "external-disable" ? storage.external.disable() : method === "import-backup" ? await require_backup_import().prepareImport(value) : method === "legacy-theme" ? storage.legacyTheme : method === "read" ? { ...storage.cache, ...storage.legacyTheme ? { theme: storage.legacyTheme } : {} } : method === "save" ? storage.save(value) : method === "patch" ? storage.patch(value) : method === "search" ? storage.search(value) : method === "checkpoint" ? storage.checkpoint(value) : method === "flush-backups" ? storage.flushRecent() : null;
     parentPort.postMessage({ id, result });
   } catch (e) {
     parentPort.postMessage({ id, error: e.message, code: e.code });

@@ -212,11 +212,12 @@
         function removeOccurrence(data, date, b) {
           let d = data.days[date] ??= emptyDay();
           d.blocks = d.blocks.filter((x) => x.id !== b.id);
-          if (b.seriesId && !d.omitted.includes(b.id)) d.omitted.push(b.id);
+          if ((b.seriesId || b.imported && b.id.startsWith("ics:")) && !d.omitted.includes(b.id)) d.omitted.push(b.id);
         }
         function put(data, date, b) {
           let d = data.days[date] ??= emptyDay();
           d.blocks = d.blocks.filter((x) => x.id !== b.id);
+          if (b.imported && !b.seriesId && d.omitted.includes(b.id)) d.omitted = d.omitted.filter((id) => id !== b.id);
           let copy = { ...b };
           delete copy.generated;
           d.blocks.push(copy);

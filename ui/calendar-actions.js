@@ -117,9 +117,10 @@ function clearPlannerDialog(){
     if(!confirm(all?'Back up and clear all planner content, including custom tasks, notes, templates and history?':'Back up and remove all scheduled blocks and repeating schedules across every date?'))return;
     $('confirmClear').disabled=true;
     try{
-      const confirmedRevision=revision;await flush();const backup=await window.desktop.checkpoint();
+      const confirmedRevision=revision;await flush();const backup=await window.desktop.checkpoint(all?'clear-all':'clear-calendar');
       if(backup?.error||!backup?.result?.ok)throw Error(backup?.error||'Backup was not confirmed.');
       if(revision!==confirmedRevision)throw Error('The planner changed while backing up. Please try again.');
+      if(backup.result.empty){dialog.close();notify('Nothing to clear.');return}
       mutate(()=>{
         if(all)data=C.fresh();
         else{

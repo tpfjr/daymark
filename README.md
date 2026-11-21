@@ -70,7 +70,7 @@ Any future auto-update proposal must be opt-in and clearly disclosed.
 File > Second backup location lets you choose another drive or a locally synchronized
 OneDrive/Dropbox folder. Daymark writes a per-installation Daymark-backups-UUID folder.
 It copies automatic recovery/history snapshots after local backup flushes, using
-atomic replacement. Intraday snapshots are included. External history is retained independently: intraday/checkpoint files for at least 7 days, daily for at least 30 days, monthly for at least 400 days, and dated before-restore files for at least 90 days (day-boundary grace applies). Recent current/previous and undated pre-upgrade files are kept. Local deletion does not delete external history. The app reports unavailable-folder errors while
+atomic replacement. Intraday snapshots are included. External history is retained independently: intraday/checkpoint files for at least 7 days, daily for at least 30 days, monthly for at least 400 days, and dated before-restore and before-clear files for at least 90 days (day-boundary grace applies). Recent current/previous and undated pre-upgrade files are kept. Local deletion does not delete external history. The app reports unavailable-folder errors while
 keeping local saving operational. Reconnect the folder to resume copying.
 
 UNC/network share paths are rejected. Mapped network drives are unsupported and not recommended: mirroring still uses synchronous file operations in the storage worker, so a hung network I/O operation could delay saving. Use local/USB storage or a locally synchronized cloud folder. A separate-thread, timed mirror is not implemented.
