@@ -1059,7 +1059,10 @@ var require_storage = __commonJS({
         for (let name of files.slice(20)) fs.unlinkSync(path.join(this.backups, name));
       }
       checkpoint() {
-        this.backupNamed("before-restore-" + this.clock().toISOString().replace(/[:.]/g, "-"), this.cache);
+        const base = "before-restore-" + this.clock().toISOString().replace(/[:.]/g, "-");
+        let name = base, sequence = 0;
+        while (fs.existsSync(path.join(this.backups, name + ".json.gz"))) name = base + "-" + ++sequence;
+        this.backupNamed(name, this.cache);
         this.pruneCheckpoints();
         return { ok: true };
       }
