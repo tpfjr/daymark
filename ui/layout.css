@@ -16,7 +16,7 @@ header .searchbox{flex:1;min-width:180px;max-width:580px;margin:0 auto}
 header .searchDates,header #searchResults{background:var(--surface);color:var(--ink)}
 header #searchResults{position:absolute;top:100%;left:0;right:0;z-index:45}
 header{flex-wrap:wrap}.calendarSection .stats{margin:10px 2px}
-[data-fit=true] .scroll:not(.month-scroll){max-height:none;min-height:0}
+[data-fit=true] .scroll:not(.month-scroll){max-height:var(--fit-viewport,none);min-height:0}
 [data-fit=true] .time{padding-top:0;line-height:1;min-height:0}
 .dailyNote{grid-template-columns:20px minmax(0,1fr) 28px}
 .dailyNote .removeNote{padding:0;min-height:26px;align-self:start}

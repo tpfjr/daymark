@@ -212,11 +212,12 @@
         function removeOccurrence(data, date, b) {
           let d = data.days[date] ??= emptyDay();
           d.blocks = d.blocks.filter((x) => x.id !== b.id);
-          if (b.seriesId && !d.omitted.includes(b.id)) d.omitted.push(b.id);
+          if ((b.seriesId || b.imported && b.id.startsWith("ics:")) && !d.omitted.includes(b.id)) d.omitted.push(b.id);
         }
         function put(data, date, b) {
           let d = data.days[date] ??= emptyDay();
           d.blocks = d.blocks.filter((x) => x.id !== b.id);
+          if (b.imported && !b.seriesId && d.omitted.includes(b.id)) d.omitted = d.omitted.filter((id) => id !== b.id);
           let copy = { ...b };
           delete copy.generated;
           d.blocks.push(copy);
@@ -7950,23 +7951,28 @@
 
   // calendar-import.mjs
   var import_core = __toESM(require_core(), 1);
-  function localTime(time, prop) {
+  function localTime(time, prop, formatters) {
     if (time.isDate) return /* @__PURE__ */ new Date(time.toString() + "T00:00:00");
-    let tzid = prop?.getParameter("tzid");
+    const tzid = prop?.getParameter("tzid");
     if (!tzid || time.zone?.tzid !== "floating") return time.toJSDate();
-    let formatter;
+    let formatter = formatters.get(tzid);
     try {
-      formatter = new Intl.DateTimeFormat("en-CA", { timeZone: tzid, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+      if (!formatter) {
+        formatter = new Intl.DateTimeFormat("en-CA", { timeZone: tzid, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+        formatters.set(tzid, formatter);
+      }
     } catch {
       throw Error("Unsupported time zone " + tzid);
     }
-    let target = Date.UTC(time.year, time.month - 1, time.day, time.hour, time.minute, time.second), stamp = target;
-    for (let i = 0; i < 4; i++) {
-      let parts = Object.fromEntries(formatter.formatToParts(new Date(stamp)).map((p) => [p.type, p.value])), actual = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second), delta = target - actual;
-      if (!delta) break;
-      stamp += delta;
+    const wall = Date.UTC(time.year, time.month - 1, time.day, time.hour, time.minute, time.second);
+    function wallAt(stamp) {
+      const p = Object.fromEntries(formatter.formatToParts(new Date(stamp)).map((part) => [part.type, part.value]));
+      return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
     }
-    return new Date(stamp);
+    const before = wall - 36 * 36e5, after = wall + 36 * 36e5;
+    const prior = wall - (wallAt(before) - before), later = wall - (wallAt(after) - after);
+    if (prior === later || wallAt(prior) === wall) return new Date(prior);
+    return new Date(wallAt(later) === wall ? later : prior);
   }
   function parseCalendar(text, { from, to, descriptionMode = "full", descriptionLimit = 1e3 }) {
     if (typeof text !== "string" || text.length > 10 * 1024 * 1024) throw Error("Import a calendar under 10 MB.");
@@ -7983,6 +7989,7 @@
       let tz = new ICALmodule.Timezone(component);
       ICALmodule.TimezoneService.register(tz.tzid, tz);
     }
+    const formatters = /* @__PURE__ */ new Map();
     let components = root.getAllSubcomponents("vevent");
     if (components.length > 1e4) throw Error("Import at most 10,000 calendar entries at a time.");
     let output = [], warnings = [], exceptions = /* @__PURE__ */ new Map(), masters = new Set(components.filter((c) => !c.hasProperty("recurrence-id")).map((c) => c.getFirstPropertyValue("uid")));
@@ -7995,6 +8002,7 @@
     for (let component of components) {
       if (component.hasProperty("recurrence-id") && masters.has(component.getFirstPropertyValue("uid"))) continue;
       let uid = component.getFirstPropertyValue("uid");
+      const outputStart = output.length;
       try {
         if (!uid) throw Error("Missing UID");
         let event = new ICALmodule.Event(component, { exceptions: component.hasProperty("recurrence-id") ? [] : exceptions.get(uid) || [] });
@@ -8017,11 +8025,15 @@
           }
           let detail = recurring ? event.getOccurrenceDetails(occ) : { item: event, startDate: event.startDate, endDate: event.endDate }, item = detail.item;
           if (item.component.getFirstPropertyValue("status") !== "CANCELLED") {
-            let start = localTime(detail.startDate, item.component.getFirstProperty("dtstart")), end = localTime(detail.endDate, item.component.getFirstProperty("dtend") || item.component.getFirstProperty("dtstart"));
+            let start = localTime(detail.startDate, item.component.getFirstProperty("dtstart"), formatters), end = localTime(detail.endDate, item.component.getFirstProperty("dtend") || item.component.getFirstProperty("dtstart"), formatters);
             if (!Number.isFinite(+start) || !Number.isFinite(+end) || +end < +start) throw Error("Invalid event time");
             let startDate = import_core.default.dateKey(start), endDate = import_core.default.dateKey(end);
             if (!import_core.default.isDate(startDate) || !import_core.default.isDate(endDate)) throw Error("Event outside supported years");
+            const n = Number(descriptionLimit), limit = descriptionLimit == null || String(descriptionLimit).trim() === "" || !Number.isFinite(n) ? 1e3 : Math.max(0, Math.min(2e4, Math.floor(n)));
+            const chars = descriptionMode === "truncate" && item.description?.length > limit ? Array.from(item.description) : null;
+            const clipped = chars && chars.length > limit;
             let allDay = detail.startDate.isDate;
+            if (allDay && uid === "notes-" + startDate + "@daymark.local" && clipped) throw Error("Grouped daily notes skipped because the description would be truncated. Choose full descriptions to import complete notes.");
             if (+end === +start) {
               if (!allDay) throw Error("Zero-duration timed event skipped; set an explicit end time in the source calendar to import it.");
               end = /* @__PURE__ */ new Date(+start + 864e5);
@@ -8030,14 +8042,15 @@
             for (let date of import_core.default.dates(startDate, last, 732)) {
               if (date < from || date > to) continue;
               let minutes = date === startDate ? start.getHours() * 60 + start.getMinutes() : 0, finish = date === import_core.default.dateKey(end) ? end.getHours() * 60 + end.getMinutes() : 1440;
-              if (!allDay && finish <= minutes) throw Error("Entry is shorter than one minute and cannot be displayed.");
-              output.push({ id: "ics:" + uid + ":" + occ.toString() + ":" + date, uid, noteText: uid.endsWith("@daymark.local") ? item.component.getFirstPropertyValue("x-daymark-note-text") : void 0, noteDone: uid.endsWith("@daymark.local") && (item.component.getFirstPropertyValue("x-daymark-note-done") === "TRUE" || /^\[x\] /i.test(item.description || "")), noteOrigin: uid.endsWith("@daymark.local") ? item.component.getFirstPropertyValue("x-daymark-note-origin") : void 0, noteId: uid.endsWith("@daymark.local") && typeof item.component.getFirstPropertyValue("x-daymark-note-id") === "string" ? item.component.getFirstPropertyValue("x-daymark-note-id") : void 0, date, allDay, title: item.summary || "Untitled event", notes: [descriptionMode === "omit" ? "" : descriptionMode === "truncate" && item.description?.length > descriptionLimit ? Array.from(item.description).slice(0, Math.max(0, Math.min(2e4, Number(descriptionLimit) || 1e3))).join("") + " [description truncated]" : item.description, item.location ? "Location: " + item.location : ""].filter(Boolean).join("\n"), start: minutes, end: finish, allowOverlap: item.component.getFirstPropertyValue("transp") === "TRANSPARENT" });
+              if (!allDay && finish <= minutes) throw Error("An event segment is shorter than one displayed minute. This event was skipped.");
+              output.push({ seriesOccurrence: recurring || component.hasProperty("recurrence-id"), id: "ics:" + uid + ":" + occ.toString() + ":" + date, uid, noteText: uid.endsWith("@daymark.local") ? item.component.getFirstPropertyValue("x-daymark-note-text") : void 0, noteDone: uid.endsWith("@daymark.local") && (item.component.getFirstPropertyValue("x-daymark-note-done") === "TRUE" || /^\[x\] /i.test(item.description || "")), noteOrigin: uid.endsWith("@daymark.local") ? item.component.getFirstPropertyValue("x-daymark-note-origin") : void 0, noteId: uid.endsWith("@daymark.local") && typeof item.component.getFirstPropertyValue("x-daymark-note-id") === "string" ? item.component.getFirstPropertyValue("x-daymark-note-id") : void 0, date, allDay, title: item.summary || "Untitled event", notes: [descriptionMode === "omit" ? "" : clipped ? chars.slice(0, limit).join("") + " [description truncated]" : item.description, item.location ? "Location: " + item.location : ""].filter(Boolean).join("\n"), start: minutes, end: finish, allowOverlap: item.component.getFirstPropertyValue("transp") === "TRANSPARENT" });
               if (output.length > 2e4) throw Error("Import at most 20,000 event days at a time. Narrow the preview date range or split the calendar into smaller files; nothing was imported.");
             }
           }
           occ = iterator?.next();
         } while (occ);
       } catch (error) {
+        output.length = outputStart;
         if (/at most 20,000/.test(error.message)) throw error;
         warnings.push(String(uid || "Unnamed event") + ": " + error.message);
       }

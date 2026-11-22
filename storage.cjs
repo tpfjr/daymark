@@ -26,8 +26,51 @@ class PlannerStorage{
  let extraClauses=clauses.map(c=>c.replace('search MATCH','extra_search MATCH'));let extras=this.db.prepare('SELECT date,id,kind,title,body,'+(terms.length?'bm25(extra_search)':'0')+' AS rank FROM extra_search WHERE '+extraClauses.join(' AND ')).all(...params);matches.push(...extras);
  let virtualFrom=from||this.cache.recurrences.map(r=>r.startDate).sort()[0]||Core.dateKey(),virtualTo=to||Core.shift(Core.dateKey(),365);if(prefix){if(prefix.length===4){virtualFrom=prefix+'-01-01';virtualTo=prefix+'-12-31'}else if(prefix.length===7){virtualFrom=prefix+'-01';let next=new Date(virtualFrom+'T12:00:00');next.setMonth(next.getMonth()+1,0);virtualTo=Core.dateKey(next)}else{virtualFrom=prefix;virtualTo=prefix}if(from&&from>virtualFrom)virtualFrom=from;if(to&&to<virtualTo)virtualTo=to}if(Core.isDate(virtualFrom)&&Core.isDate(virtualTo)){let count=0;for(let date=virtualFrom;Core.isDate(date)&&date<=virtualTo&&count<36600;date=Core.shift(date,1),count++)for(let b of entries(date).values()){if(!b.seriesId||seen.has(date+b.id))continue;let body=(Core.label(this.cache,b)+' '+b.notes).toLowerCase();if(terms.every(t=>body.includes(t.toLowerCase()))){matches.push({date,id:b.id,b,rank:0});seen.add(date+b.id)}}}
  if(structured&&(value.type||value.task))matches=matches.filter(x=>{let kind=x.kind||'block';if(value.type&&kind!==value.type)return false;if(!value.task)return true;if(x.b)return x.b.cat===value.task;if(kind==='backlog')return this.cache.backlog[x.id]?.cat===value.task;if(kind==='daily-note'){let note=this.cache.days[x.date]?.dailyNotes?.find(n=>n.id===x.id);return note?.links.some(l=>entries(l.date).get(l.id)?.cat===value.task)}return false});matches.sort((a,b)=>a.rank-b.rank||b.date.localeCompare(a.date)||(a.b?.start||0)-(b.b?.start||0));if(!structured)return matches;let offset=Math.max(0,+value.offset||0);return {items:value.all?matches:matches.slice(offset,offset+100),total:matches.length,virtualTo};}
- pruneCheckpoints(){let files=fs.readdirSync(this.backups).filter(f=>/^before-restore-.*\.json\.gz$/.test(f)).sort().reverse();for(let name of files.slice(20))fs.unlinkSync(path.join(this.backups,name))}
- checkpoint(){const base='before-restore-'+this.clock().toISOString().replace(/[:.]/g,'-');let name=base,sequence=0;while(fs.existsSync(path.join(this.backups,name+'.json.gz')))name=base+'-'+(++sequence);this.backupNamed(name,this.cache);this.pruneCheckpoints();return {ok:true}}
+ checkpointFiles(pool){
+   const entries=[];
+   for(const file of fs.readdirSync(this.backups)){
+     const match=/^before-(restore|clear)-(\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d-\d{3}Z)(?:-(n?)(\d+))?\.json\.gz$/.exec(file);
+     if(match&&match[1]===pool)entries.push({file,stamp:match[2],order:match[3]==='n'?Number(match[4]):0,sequence:Number(match[4]||0)});
+   }
+   return entries.sort((a,b)=>b.order-a.order||(a.stamp===b.stamp?b.sequence-a.sequence:a.stamp>b.stamp?-1:1));
+ }
+ pruneCheckpoints(protectedFile){
+   for(const pool of ['restore','clear']){
+     const ordered=this.checkpointFiles(pool),keep=new Set();
+     if(protectedFile&&ordered.some(entry=>entry.file===protectedFile))keep.add(protectedFile);
+     for(const {file} of ordered){
+       if(keep.size<20)keep.add(file);
+       if(!keep.has(file)){
+         try{fs.unlinkSync(path.join(this.backups,file))}
+         catch(error){if(error.code!=='ENOENT')this.backupStatus(Error('Older backup retained; cleanup will retry: '+error.message))}
+       }
+     }
+   }
+ }
+ checkpoint(mode){
+   const clear=mode==='clear-all'||mode==='clear-calendar';
+   if(mode==='clear-calendar'&&!this.cache.recurrences.length&&!Object.values(this.cache.days).some(day=>day.blocks.length||day.omitted?.some(id=>!id.startsWith('ics:'))||day.dailyNotes?.some(note=>note.links.length)))
+     return {ok:true,empty:true};
+   const equal=require('node:util').isDeepStrictEqual;
+   if(mode==='clear-all'&&equal(Core.normalize(this.cache),Core.normalize(Core.fresh())))return {ok:true,empty:true};
+   const pool=clear?'clear':'restore',stamp=this.clock().toISOString().replace(/[:.]/g,'-');
+   const newest=this.checkpointFiles(pool)[0];
+   const name='before-'+pool+'-'+stamp+'-n'+((newest?.order||0)+1);
+   const file=path.join(this.backups,name+'.json.gz');
+   this.backupNamed(name,this.cache);
+   try{
+     const {LIMITS}=require('./backup-import.cjs');
+     if(fs.statSync(file).size>LIMITS.compressed)throw Error('File exceeds the compressed restore limit.');
+     const bytes=zlib.gunzipSync(fs.readFileSync(file),{maxOutputLength:LIMITS.expanded});
+     if(!bytes.equals(Buffer.from(JSON.stringify(this.cache))))throw Error('File contents differ from the saved planner.');
+     Core.normalize(JSON.parse(bytes.toString('utf8')));
+   }catch(error){
+     fs.rmSync(file,{force:true});
+     throw Error('Could not verify the backup. '+error.message);
+   }
+   this.pruneCheckpoints(path.basename(file));
+   return {ok:true};
+ }
  close(){try{this.flushRecent()}finally{this.backupClearTimeout(this.backupTimer);this.backupTimer=null;this.db.close()}}
 }
 module.exports={PlannerStorage};
