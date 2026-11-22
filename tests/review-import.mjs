@@ -34,6 +34,12 @@ test('grouped daily notes merge individually and repeated import is stable',()=>
   P.applyCalendar(d,item,'ms');P.applyCalendar(d,item,'ms');
   assert.deepEqual(d.days[date].dailyNotes.map(n=>[n.text,n.done,n.originDate]),[['Existing',false,date],['Different',true,'2026-11-03']]);
 });
+test('ICS exact minutes survive duplicate import and backup normalization on schema 9',()=>{
+ const d=C.fresh(),p=parse(event('precise',':20261103T090500',':20261103T091300'));
+ assert.equal(P.applyCalendar(d,p,'ms').added,1);assert.equal(P.applyCalendar(d,p,'ms').added,0);
+ const saved=C.normalize(d);assert.equal(saved.version,9);
+ assert.deepEqual(saved.days['2026-11-03'].blocks.map(b=>[b.start,b.end]),[[545,553]]);
+});
 test('ICS midnight splitting, exclusive all-day end, DST timezone conversion and stable re-import',()=>{
   const d=C.fresh(),p=parse(event('night',':20261125T230000',':20261126T070000'),event('off',';VALUE=DATE:20261103',';VALUE=DATE:20261105'),event('dst',';TZID=America/New_York:20261101T003000',';TZID=America/New_York:20261101T033000'));
   assert.deepEqual(p.warnings,[]);

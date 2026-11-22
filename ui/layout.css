@@ -24,3 +24,12 @@ header{flex-wrap:wrap}.calendarSection .stats{margin:10px 2px}
 #selectionActions{margin:4px}.selectingBlocks{user-select:none}
 #similarDialog label,#clearPlannerDialog label{display:block}
 #selectionActions{position:fixed;z-index:32;bottom:44px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--edge);border-radius:7px;padding:5px}
+
+#blockColor{display:block;width:100%;height:38px;min-height:38px;padding:3px;margin:4px 0 12px;cursor:pointer}
+.toolbar #currentTime{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.month-date{display:flex;align-items:center;justify-content:space-between;width:100%;gap:4px}
+.block.shortBlock{padding:0 5px;display:flex;align-items:center;overflow:hidden}
+.shortBlock strong{display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1}
+.spread{position:absolute;top:25%;bottom:25%;width:5px;cursor:ew-resize;z-index:3}
+.spread.left{left:0}.spread.right{right:0}.block:hover .spread{background:color-mix(in srgb,var(--accent) 60%,transparent)}
+#selectionActions select{max-width:220px}

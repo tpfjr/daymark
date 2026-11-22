@@ -1,6 +1,13 @@
 {
-  "version": "1.12.0",
+  "version": "1.13.0",
   "electron": "45.2.3",
-  "coreSha256": "d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b",
-  "workerSha256": "8df8c1e19a9aa0e6cc6674aff1fadf3dae985080cf05f45ad7493acfdb10dca9"
+  "coreSha256": "0b091663cc569993d5c9f120ff405331cd5fb9f1ca16f498ffd1e90660576c25",
+  "workerSha256": "03ce16884d8fb155753b949cb4af97d4baf0c9877e6b1037f92d74bd6cfa8e36",
+  "calendarSha256": "2340700f42132b2ad4770734aeabe73ee028ab0a1851901a06ba7274178fb481",
+  "calendarInputs": {
+    "ui/core.js": "0b091663cc569993d5c9f120ff405331cd5fb9f1ca16f498ffd1e90660576c25",
+    "calendar-import.mjs": "fc5b504f0e3f1b43d3cf23122bc58fffa34dbd3d3c5fabcbe45f86627535e92f",
+    "calendar-worker-entry.mjs": "1118588ace42a48f10f22a4020deb6101861a19d82edceff85b83eb73b2036e2",
+    "package-lock.json": "6bc52c22a5b9f57bc5be16ed8455376e266f0fb6f7e6d547dc01d8e0a9595913"
+  }
 }
