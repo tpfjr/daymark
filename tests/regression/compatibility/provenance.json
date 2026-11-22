@@ -13,5 +13,20 @@
     "version": "1.12.0",
     "source": "git 36a68f18f3f24db814eb959b13d268b8b4f03f64:ui/core.js",
     "sha256": "d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b"
+  },
+  {
+    "version": "1.12.0",
+    "source": "git 36a68f18f3f24db814eb959b13d268b8b4f03f64:storage.cjs",
+    "sha256": "30286fd1053f44cc57a19aed5da33d444ef8759926013e520834070c41016e13"
+  },
+  {
+    "version": "1.12.0",
+    "source": "git 36a68f18f3f24db814eb959b13d268b8b4f03f64:external-backup.cjs",
+    "sha256": "3899feba01ee135dc22197fe4d3bf7baeebe9d5f23a1e5a596f9ed1d82c3335b"
+  },
+  {
+    "version": "1.12.0",
+    "source": "git 36a68f18f3f24db814eb959b13d268b8b4f03f64:backup-import.cjs",
+    "sha256": "0c1d9b5798dc30a1742e4d79c0493f0d6ef8e79ea7a14f79d5ba5472b1c0049e"
   }
 ]
