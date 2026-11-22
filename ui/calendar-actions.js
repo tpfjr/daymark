@@ -104,7 +104,16 @@ function manageSimilar(date,b,action='move') {
         let target=row.series?data.recurrences.find(r=>r.id===row.block.id):data.days[row.date].blocks.find(x=>x.id===row.block.id);
         if(row.series && row.weekday!==null && target.weekdays.length>1){
           const morning=data.recurrences.find(r=>r.id==='morning:'+target.id);
-          target=splitWeekday(target,row.weekday,uid());
+          const previous=(row.weekday+6)%7;
+          const evening=target.id.startsWith('morning:')&&data.recurrences.find(r=>r.id===target.id.slice(8)&&r.weekdays.includes(previous));
+          const newId=uid();
+          if(evening&&evening.weekdays.length>1){
+            splitWeekday(evening,previous,newId);
+            target=splitWeekday(target,row.weekday,'morning:'+newId);
+          }else if(evening){
+            // The only evening weekday keeps the original morning ID. Detach the other weekdays.
+            for(const weekday of [...target.weekdays])if(weekday!==row.weekday)splitWeekday(target,weekday,uid());
+          }else target=splitWeekday(target,row.weekday,newId);
           const next=(row.weekday+1)%7;
           if(morning?.weekdays.includes(next)&&morning.weekdays.length>1)splitWeekday(morning,next,'morning:'+target.id);
         }

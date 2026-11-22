@@ -50,4 +50,18 @@ The follow-up tests are in `tests/review-import.mjs`, `tests/review-editor.cjs` 
 
 `tests/review-edges.mjs` covers the file-format cases. `tests/review-boundaries-native.cjs` exercises the desktop editor, legacy normalization, date navigation, clear and resize behavior. The reviewer attachment includes `ui/planner-ux.js` and the actual normalization and legacy recovery code from `ui/core.js`.
 
+## Fourth review (R1–R7)
+
+| Finding | Resolution |
+| --- | --- |
+| R1 · Weekday split from the morning | A weekday edit from either side of a paired overnight series splits the corresponding weekday on the other side. The Monday/Tuesday pair keeps its link and edits to it leave Wednesday/Thursday alone. A native regression opens the Tuesday morning, moves it to 00:30, then re-extends Monday evening and checks the exact count and hours on both mornings. |
+| R2 · Moving an evening by date | Moving a midnight-ending evening in the editor or across calendar columns carries its linked morning to the following date and updates note links for that morning. A single recurring occurrence leaves the following week's series intact. |
+| R3 · Imported notes returning | Deleting a note through the main window or its pop-out records the note ID on that date. Re-import skips that ID. Legacy grouped notes use the original text and origin date to identify individual notes when the group is reordered. Existing deletions made before the update cannot be reconstructed. Calendar-only clear preserves import exclusions; full planner clear resets them. |
+| R4 · Direct deletion and resizing | Native pointer tests right-click the evening and use Delete block, then separately drag the bottom grip upward. Both actions offer the linked-morning choice. Bulk moves change the matched blocks' times only. For example, moving a 23:00–00:00 rule to 22:00–23:00 can leave a gap before its morning. |
+| R5 · Short entries in Fit | After the date headers are laid out, Fit uses the shortest visible timed block, down to a ten-minute row. Ten-, twenty- and thirty-minute blocks get at least 14 pixels. Short windows scroll internally when necessary. A native test switches from Month to Week in a 700-pixel-high window and measures the block, grid and scroll area. Imported blocks shorter than ten minutes can be smaller. |
+| R6 · Dates announced by screen readers | Week and Month buttons share an accessible name including the date, named holiday, and listed day-off status. Tested in both views on Thanksgiving marked as a day off. |
+| R7 · Description limit | Blank, missing and nonnumeric limits use 1,000 characters. Explicit zero and valid numeric limits are honored. |
+
+“Skip days off” consults the specific and yearly dates you have listed. A Saturday outside your working week can still show Friday night's morning block. Listing that Saturday as a day off hides it.
+
 The Windows test runs use temporary profiles. Packaged-app checks launch the executable directly. A clean-machine installer walkthrough and an upgrade over a live planner are separate manual checks.

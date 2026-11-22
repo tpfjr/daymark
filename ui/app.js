@@ -45,13 +45,20 @@ function fitRowsToWindow(){
   const available=Math.max(48,Math.floor(Math.min(bottom,innerHeight)-rect.top-below-4));
   const gridHeight=available-$('heads').offsetHeight-2;
   // A half-hour occupies three rows, with two pixels of separation between blocks.
-  rowPixels=Math.max(5.4,Math.floor(gridHeight/((data.end-data.start)*6)*10)/10);
+  let shortest=30;
+  for(const date of daysVisible())for(const block of C.blocks(data,date)){
+    const visible=Math.min(block.end,data.end*60)-Math.max(block.start,data.start*60);
+    if(visible>0)shortest=Math.min(shortest,Math.max(10,visible));
+  }
+  rowPixels=Math.max(5.4,160/shortest,Math.floor(gridHeight/((data.end-data.start)*6)*10)/10);
   document.documentElement.style.setProperty('--fit-viewport',available+'px');
   document.documentElement.style.setProperty('--row-height',rowPixels+'px');
 }
 function openCalendarDay(date){selected=date;view='day';render();$('scroll').scrollTop=0}
 let pendingHeading;
 function bindDateHeading(button,date){
+  const holiday=button.querySelector('[role="img"]')?.title;
+  button.setAttribute('aria-label',['Day and template actions for '+date,holiday,C.isDayOff(data,date)?'day off':''].filter(Boolean).join(', '));
   button.onclick=e=>{
     clearTimeout(pendingHeading);endBurst();
     if(e.detail===0){dayActions(date);return}
@@ -76,8 +83,10 @@ $('form').onsubmit=async e=>{e.preventDefault();if($('blockReminder').checked){l
    if(!hasPair&&morning.some(x=>x.start===0&&x.cat===editing.cat&&x.details===editing.details)&&
       !confirm('A matching midnight block already exists without a link to this evening. To change it, cancel and edit the morning block directly. Create an additional morning block?'))return;
  }
+ const movingMorning=!overnight&&!repeating&&editing&&editingDate!==date&&editing.end===1440&&b.end===1440?findLinkedMorning(editingDate,editing):null;
+ if(movingMorning&&!C.isDate(following)){$('error').textContent='The linked morning would exceed the calendar date range.';return}
  const removeMorning=!overnight&&editing?.end===1440&&b.end<1440?chooseMorningRemoval(editingDate,editing,$('scope').value==='series'):null;
- mutate(()=>{removeMorning?.();if(!newTask&&data.categories[cat][1]!==$('blockColor').value){data.categories[cat][1]=$('blockColor').value;data.categories[cat][2]=pale($('blockColor').value)}if(newTask){data.categories[cat]=newTask;data.taskSettings[cat]={duration:30,archived:false}}if(repeating){data.recurrences=data.recurrences.filter(x=>x.id!==r.id);data.recurrences.push(r);if(editing&&!editing.seriesId)C.removeOccurrence(data,editingDate,editing)}else{if(editing)C.removeOccurrence(data,editingDate,editing);C.put(data,date,b)}if(overnight){
+ mutate(()=>{removeMorning?.();moveLinkedMorning(movingMorning,following);if(!newTask&&data.categories[cat][1]!==$('blockColor').value){data.categories[cat][1]=$('blockColor').value;data.categories[cat][2]=pale($('blockColor').value)}if(newTask){data.categories[cat]=newTask;data.taskSettings[cat]={duration:30,archived:false}}if(repeating){data.recurrences=data.recurrences.filter(x=>x.id!==r.id);data.recurrences.push(r);if(editing&&!editing.seriesId)C.removeOccurrence(data,editingDate,editing)}else{if(editing)C.removeOccurrence(data,editingDate,editing);C.put(data,date,b)}if(overnight){
  data.start=0;data.end=24;
  saveMorning(b,r,following,morningEnd);
  }if(legacySource){data.days[legacySource.date][legacySource.kind].splice(legacySource.index,1);legacySource=null}selected=date});$('editor').close()};
@@ -112,6 +121,12 @@ function chooseMorningRemoval(date,b,wholeSeries=false){
     if(!ruleId||!data.recurrences.some(r=>r.id===ruleId))return null;
     return confirm('Also remove the linked morning series and its edited occurrences? OK removes the mornings. Cancel keeps them and continues with the evening change.')?()=>removeSeriesAndExceptions(ruleId):null;
   }
+  const found=findLinkedMorning(date,b);
+  if(!found||!confirm('Also remove the linked morning block on '+found.key+'? OK removes the morning. Cancel keeps it and continues with the evening change.'))return null;
+  return ()=>C.removeOccurrence(data,found.key,found.block);
+}
+function findLinkedMorning(date,b){
+  const ruleId=b.seriesId&&'morning:'+b.seriesId;
   const origin=b.id.slice(-10),next=C.shift(date,1);
   const paired=ruleId&&C.isDate(origin)&&b.id===C.occurrenceId(b.seriesId,origin);
   const ids=new Set(['morning:'+b.id]);
@@ -124,8 +139,14 @@ function chooseMorningRemoval(date,b,wholeSeries=false){
     const block=blocks.find(x=>ids.has(x.id));
     if(block){found={key,block};break}
   }
-  if(!found||!confirm('Also remove the linked morning block on '+found.key+'? OK removes the morning. Cancel keeps it and continues with the evening change.'))return null;
-  return ()=>C.removeOccurrence(data,found.key,found.block);
+  return found;
+}
+function moveLinkedMorning(found,destination){
+  if(!found||found.key===destination)return;
+  C.removeOccurrence(data,found.key,found.block);
+  C.put(data,destination,found.block);
+  for(const day of Object.values(data.days))for(const note of day.dailyNotes||[])for(const link of note.links)
+    if(link.id===found.block.id&&link.date===found.key)link.date=destination;
 }
 function deleteCalendarBlock(date,b){
   const removeMorning=chooseMorningRemoval(date,b);
@@ -136,7 +157,7 @@ $('delete').onclick=()=>{if(!editing)return;if($('scope').value==='series'){if(!
 function slot(e,lane){return Math.max(data.start*60,Math.min(data.end*60-10,data.start*60+Math.floor((e.clientY-lane.getBoundingClientRect().top)/rowPixels)*10))}
 function clearPreview(){document.querySelectorAll('.selection').forEach(el=>el.remove())}
 function preview(lane,start,end){clearPreview();let el=document.createElement('div');el.className='selection';el.style.top=(start-data.start*60)/10*rowPixels+'px';el.style.height=(end-start)/10*rowPixels+'px';lane.append(el)}
-function moveBlock(from,to,b,start,end){if(!C.isDate(to)){notify('The calendar supports dates from 1000 through 9999.');return}let next={...b,start,end};if(!C.timing(next)||start<data.start*60||end>data.end*60){notify('Keep the block inside your displayed day.');return}const removeMorning=b.end===1440&&end<1440&&start===b.start&&from===to?chooseMorningRemoval(from,b):null;mutate(()=>{removeMorning?.();C.removeOccurrence(data,from,b);C.put(data,to,next);selected=to});focusBlock(to,b.id)}
+function moveBlock(from,to,b,start,end){if(!C.isDate(to)){notify('The calendar supports dates from 1000 through 9999.');return}let next={...b,start,end};if(!C.timing(next)||start<data.start*60||end>data.end*60){notify('Keep the block inside your displayed day.');return}const movingMorning=from!==to&&b.end===1440&&end===1440?findLinkedMorning(from,b):null,following=C.shift(to,1);if(movingMorning&&!C.isDate(following)){notify('The linked morning would exceed the calendar date range.');return}const removeMorning=b.end===1440&&end<1440&&start===b.start&&from===to?chooseMorningRemoval(from,b):null;mutate(()=>{removeMorning?.();moveLinkedMorning(movingMorning,following);C.removeOccurrence(data,from,b);C.put(data,to,next);selected=to});focusBlock(to,b.id)}
 function bindLane(lane){lane.onpointerdown=e=>{if(e.button!==0)return;endBurst();let id=e.target.closest('.block')?.dataset.id,b=id?C.blocks(data,lane.dataset.date).find(b=>b.id===id):null,m=slot(e,lane);gesture={lane,source:lane.dataset.date,target:lane.dataset.date,b,mode:b?(e.target.classList.contains('resizeTop')?'resizeStart':e.target.classList.contains('resize')?'resize':'move'):'create',anchor:m,x:e.clientX,y:e.clientY,moved:false,start:b?.start??m,end:b?.end??Math.min(m+30,data.end*60)};lane.setPointerCapture(e.pointerId);e.preventDefault()};lane.onpointermove=e=>{let g=gesture;if(!g)return;if(Math.abs(e.clientX-g.x)+Math.abs(e.clientY-g.y)>5)g.moved=true;if(!g.moved)return;let target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.lane')||g.lane,m=slot(e,target);if(g.mode==='move'){let length=g.b.end-g.b.start;g.start=Math.max(data.start*60,Math.min(data.end*60-length,g.b.start+m-g.anchor));g.end=g.start+length;g.target=target.dataset.date}else if(g.mode==='resizeStart'){target=g.lane;g.start=Math.min(g.b.end-10,slot(e,target))}else if(g.mode==='resize'){target=g.lane;g.end=Math.max(g.b.start+10,Math.min(data.end*60,slot(e,target)+10))}else{target=g.lane;m=slot(e,target);g.start=Math.min(m,g.anchor);g.end=Math.max(m,g.anchor)+10}preview(target,g.start,g.end);let box=$('scroll').getBoundingClientRect();if(e.clientY>box.bottom-35)$('scroll').scrollTop+=15;else if(e.clientY<box.top+80)$('scroll').scrollTop-=15};lane.onpointerup=()=>{let g=gesture;gesture=null;clearPreview();if(!g)return;if(g.mode==='create'){selected=g.source;openEditor(g.source,{start:g.start,end:g.end});return}if(!g.moved){openEditor(g.source,g.b);return}moveBlock(g.source,g.target,g.b,g.start,g.end)};lane.onpointercancel=()=>{gesture=null;clearPreview()};
  lane.ondragover=e=>{if(!Array.from(e.dataTransfer.types).some(t=>t==='application/x-daymark-task'||t==='text/plain'))return;e.preventDefault();e.dataTransfer.dropEffect='copy';let m=slot(e,lane),type=Array.from(e.dataTransfer.types).find(t=>/^application\/x-daymark-duration-\d+$/.test(t)),length=type?+type.split('-').at(-1):30;preview(lane,m,Math.min(data.end*60,m+length))};lane.ondragleave=e=>{if(!lane.contains(e.relatedTarget))clearPreview()};lane.ondrop=e=>{e.preventDefault();clearPreview();let id=e.dataTransfer.getData('application/x-daymark-task')||e.dataTransfer.getData('text/plain').replace(/^daymark-task:/,'');placeTemplate(id,lane.dataset.date,slot(e,lane))}}
 function blockKey(e,date,b){if(e.key==='Enter'||e.key===' '){e.preventDefault();openEditor(date,b)}else if(e.key==='Delete'){e.preventDefault();deleteCalendarBlock(date,b)}else if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();if(e.key==='ArrowLeft'||e.key==='ArrowRight')moveBlock(date,C.shift(date,e.key==='ArrowLeft'?-1:1),b,b.start,b.end);else{let delta=e.key==='ArrowUp'?-10:10;moveBlock(date,date,b,e.shiftKey?b.start:b.start+delta,b.end+delta)}}}

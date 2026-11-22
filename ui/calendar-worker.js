@@ -8029,7 +8029,7 @@
             if (!Number.isFinite(+start) || !Number.isFinite(+end) || +end < +start) throw Error("Invalid event time");
             let startDate = import_core.default.dateKey(start), endDate = import_core.default.dateKey(end);
             if (!import_core.default.isDate(startDate) || !import_core.default.isDate(endDate)) throw Error("Event outside supported years");
-            const limit = Math.max(0, Math.min(2e4, Number(descriptionLimit) || 0));
+            const n = Number(descriptionLimit), limit = descriptionLimit == null || String(descriptionLimit).trim() === "" || !Number.isFinite(n) ? 1e3 : Math.max(0, Math.min(2e4, Math.floor(n)));
             const chars = descriptionMode === "truncate" && item.description?.length > limit ? Array.from(item.description) : null;
             const clipped = chars && chars.length > limit;
             let allDay = detail.startDate.isDate;
