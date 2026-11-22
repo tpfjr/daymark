@@ -37,7 +37,7 @@ function dayActions(date) {
 function templateFromDate(capture) {
   $('dateActions').close(); $('dayTemplates').click();
   $('templateFrom').value=$('templateThrough').value=selected;
-  document.querySelectorAll('[name=templateWeekday]').forEach(c=>c.checked=true);
+  templateWeekdays(selected,true);
   $('templateSkipDaysOff').checked=false; templateTargetSummary();
   if(capture){$('templateUseDay').click();$('dayTemplateName').focus()}
   else $('templateChoice').focus();
@@ -205,8 +205,8 @@ function selectionMatches(rows,scope){
 function setupSelection(){
   const grid=$('grid');let drag=null;
   const status=$('selectionActions');
-  function reset(){grid.querySelectorAll('.multiSelected').forEach(el=>el.classList.remove('multiSelected'));status.hidden=true}
-  const observer=new MutationObserver(()=>{if(!grid.querySelector('.multiSelected'))status.hidden=true});
+  function reset(){$('selectionScope').value='selected';$('removeSelection').textContent='Delete 0 selected';grid.querySelectorAll('.multiSelected').forEach(el=>el.classList.remove('multiSelected'));status.hidden=true}
+  const observer=new MutationObserver(()=>{if(!grid.querySelector('.multiSelected'))reset()});
   observer.observe(grid,{childList:true});
   grid.addEventListener('pointerdown',e=>{
     if(!e.shiftKey||e.button!==0)return;
@@ -218,7 +218,7 @@ function setupSelection(){
     if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<4&&!drag.moved)return;drag.moved=true;
     const left=Math.min(drag.x,e.clientX),top=Math.min(drag.y,e.clientY),right=Math.max(drag.x,e.clientX),bottom=Math.max(drag.y,e.clientY);
     for(const el of grid.querySelectorAll('.block,.month-event')){
-      const r=el.getBoundingClientRect();el.classList.toggle('multiSelected',drag.initial.has(el)||(r.right>=left&&r.left<=right&&r.top<=bottom&&r.bottom>=top));
+      const r=el.getBoundingClientRect();el.classList.toggle('multiSelected',drag.initial.has(el)!==(r.right>=left&&r.left<=right&&r.top<=bottom&&r.bottom>=top));
     }
     const count=grid.querySelectorAll('.multiSelected').length;
     status.hidden=!count;$('removeSelection').textContent='Delete '+count+' selected';
@@ -234,7 +234,11 @@ function setupSelection(){
     if(!rows.length){reset();return}
     const scope=$('selectionScope').value;
     const {singles,series}=scope==='selected'?{singles:rows,series:new Map()}:selectionMatches(rows,scope);
-    if(!confirm('Delete '+singles.length+' saved or selected occurrences'+(series.size?' and matching weekdays in '+series.size+' repeating schedules':'')+'?'))return;
+    const bounds=singles.map(row=>row.date);let openEnded=false;
+    for(const r of data.recurrences)if(series.has(r.id)){bounds.push(r.startDate);if(r.endDate)bounds.push(r.endDate);else openEnded=true}
+    bounds.sort();
+    const span=bounds.length?' Date range: '+bounds[0]+(openEnded?' onward (no end date).':' through '+bounds.at(-1)+'.'):'';
+    if(!confirm('Delete '+singles.length+' saved or selected occurrences'+(series.size?' and matching weekdays in '+series.size+' repeating schedules':'')+'?'+span))return;
     mutate(()=>{
       deleteDayRows(singles);
       for(const [id,weekdays] of series){
@@ -246,7 +250,7 @@ function setupSelection(){
   };
 }
 for(const [id,period] of [['anchorWeek','week'],['anchorMonth','month']]){
-  $(id).onclick=()=>{if($('dateActions').open)$('dateActions').close();rangeAnchor=selected;view=period;render();$('scroll').scrollTop=0};
+  $(id).onclick=()=>{if($('dateActions').open)$('dateActions').close();startRange(selected);view=period;render();$('scroll').scrollTop=0};
 }
 $('clearDate').onclick=()=>{
   const rows=C.blocks(data,selected).map(b=>({date:selected,b}));

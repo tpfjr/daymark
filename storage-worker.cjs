@@ -1,4 +1,4 @@
-// Daymark shared core SHA256: 54a9fdf35a22f6d78e500a28ab00af2c94145f09843f75d133518e97ae1faddc
+// Daymark shared core SHA256: 0b091663cc569993d5c9f120ff405331cd5fb9f1ca16f498ffd1e90660576c25
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   try {
@@ -45,14 +45,18 @@ var require_core = __commonJS({
       function precisionFields(start, end) {
         return start % 10 || end % 10 ? { minutePrecision: true } : {};
       }
+      function requiredVersion({ days = {}, recurrences = [], dayTemplates = {} }) {
+        const precise = (b) => b?.minutePrecision === true && !b.imported && (b.start % 10 !== 0 || b.end % 10 !== 0);
+        return recurrences.some(precise) || Object.values(dayTemplates).some((t) => t.blocks.some(precise)) || Object.values(days).some((d) => d && (d.blocks?.some(precise) || Array.isArray(d.legacyActual) && d.legacyActual.some(precise))) ? 10 : 9;
+      }
       function timing(b) {
         return Number.isInteger(b.start) && Number.isInteger(b.end) && b.start >= 0 && b.end <= 1440 && (b.imported === true || b.minutePrecision === true || b.start % 10 === 0 && b.end % 10 === 0) && b.end > b.start;
       }
       function normalizeUnsafe(input) {
         if (!input) return fresh();
         let v = clone(input);
-        if (Number.isInteger(v.version) && v.version > 9) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
-        if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
+        if (Number.isInteger(v.version) && v.version > 10) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
+        if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
         let categories = v.categories || { ...defaults, ...legacy };
         if (!Object.keys(categories).length) throw Error("No tasks found.");
         for (let [k, c] of Object.entries(categories)) {
@@ -150,6 +154,7 @@ var require_core = __commonJS({
         let affected = new Set(Array.isArray(v.holidayMigrationSeriesIds) ? v.holidayMigrationSeriesIds.filter((id) => out.recurrences.some((r) => r.id === id && r.skipDaysOff)) : []);
         for (let r of v.recurrences || []) if (r.skipDaysOff === void 0 && seriesHitsHoliday(out, r)) affected.add(r.id);
         if (affected.size) out.holidayMigrationSeriesIds = [...affected];
+        out.version = Math.max(v.version, requiredVersion(out));
         return out;
       }
       function normalize(input) {
@@ -298,6 +303,7 @@ var require_core = __commonJS({
           let key = data.dayTemplates[id] ? uuid() : id;
           data.dayTemplates[key] = { name: t.name, blocks: t.blocks.map((b) => ({ ...b, cat: mapping[b.cat] })) };
         }
+        data.version = Math.max(data.version, requiredVersion(data));
         return { data, report: report2 };
       }
       function recoverLegacy(input) {
@@ -529,9 +535,9 @@ var require_core = __commonJS({
         let first = date.slice(0, 7) + "-01", last = new Date(+date.slice(0, 4), +date.slice(5, 7), 0);
         return [...dates(first, dateKey(last), 31)];
       }
-      function shiftMonth(date, delta) {
+      function shiftMonth(date, delta, preferredDay) {
         let [y, m, d] = date.split("-").map(Number), next = new Date(y, m - 1 + delta, 1);
-        next.setDate(Math.min(d, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+        next.setDate(Math.min(preferredDay ?? d, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
         let result = dateKey(next);
         return isDate(result) ? result : date;
       }
@@ -554,7 +560,7 @@ var require_core = __commonJS({
         }
         return count;
       }
-      const api = { precisionFields, monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
+      const api = { requiredVersion, precisionFields, monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
       if (typeof module2 !== "undefined") module2.exports = api;
       else root.PlannerCore = api;
     })(globalThis);
@@ -781,7 +787,7 @@ var require_storage = __commonJS({
         this.external = new (require_external_backup()).ExternalBackup(dir);
         this.cache = this.read();
         this.legacyTheme ??= this.cache.version < 4 && ["dark", "light", "system"].includes(this.cache.theme) ? this.cache.theme : this.db.prepare("SELECT value FROM meta WHERE key='legacy-theme'").get()?.value;
-        if (this.cache.version > 9) {
+        if (this.cache.version > 10) {
           this.db.close();
           throw Error("This planner uses a newer schema. Open it with a newer Daymark version.");
         }
@@ -793,6 +799,10 @@ var require_storage = __commonJS({
           this.backupNamed("before-schema-9", this.cache);
           this.cache = Core.normalize(this.cache);
           this.write(this.cache);
+        } else if (this.cache.version === 9 && Core.requiredVersion(this.cache) === 10) {
+          this.cache.version = 10;
+          const { days, ...meta } = this.cache;
+          this.db.prepare("UPDATE meta SET value=? WHERE key='planner'").run(JSON.stringify(meta));
         }
         this.db.exec("CREATE VIRTUAL TABLE IF NOT EXISTS extra_search USING fts5(date UNINDEXED,id UNINDEXED,kind UNINDEXED,title,body)");
         if (!this.db.prepare("SELECT value FROM meta WHERE key='extra-search-version'").get()) {
@@ -1013,6 +1023,8 @@ var require_storage = __commonJS({
       }
       patch(payload) {
         let nextMeta = payload.meta || (({ days, ...meta2 }) => meta2)(this.cache), validated = Core.normalize({ ...nextMeta, days: Object.fromEntries(Object.entries(payload.days || {}).filter(([k, v]) => v !== null)) }), { days: changes, ...meta } = validated;
+        meta.version = Math.max(meta.version, this.cache.version);
+        const schemaChanged = meta.version !== this.cache.version;
         if (Object.keys(this.cache.categories).some((key) => !Object.hasOwn(meta.categories, key))) {
           let finalDays = { ...this.cache.days };
           for (let [date, value] of Object.entries(payload.days || {})) {
@@ -1025,7 +1037,7 @@ var require_storage = __commonJS({
         let rename = JSON.stringify(meta.categories) !== JSON.stringify(this.cache.categories), cacheDays = { ...this.cache.days };
         this.db.exec("BEGIN IMMEDIATE");
         try {
-          if (payload.meta || JSON.stringify(meta.holidayNames) !== JSON.stringify(this.cache.holidayNames)) this.db.prepare("UPDATE meta SET value=? WHERE key='planner'").run(JSON.stringify(meta));
+          if (payload.meta || schemaChanged || JSON.stringify(meta.holidayNames) !== JSON.stringify(this.cache.holidayNames)) this.db.prepare("UPDATE meta SET value=? WHERE key='planner'").run(JSON.stringify(meta));
           for (let [date, value] of Object.entries(payload.days || {})) {
             this.indexExtras(date, changes[date]);
             if (!Core.isDate(date)) throw Error("Invalid day");
@@ -1048,7 +1060,7 @@ var require_storage = __commonJS({
           this.db.exec("COMMIT");
           this.cache = { ...meta, days: cacheDays };
           this.afterCommit();
-          return { ok: true, changedDays: Object.keys(payload.days || {}).length, applied: { ...payload.meta ? { meta } : {}, days: Object.fromEntries(Object.entries(payload.days || {}).map(([date, value]) => [date, value === null ? null : changes[date]])) }, backupWarning: this.backupError };
+          return { ok: true, changedDays: Object.keys(payload.days || {}).length, applied: { ...payload.meta || schemaChanged ? { meta } : {}, days: Object.fromEntries(Object.entries(payload.days || {}).map(([date, value]) => [date, value === null ? null : changes[date]])) }, backupWarning: this.backupError };
         } catch (e) {
           this.db.exec("ROLLBACK");
           throw e;

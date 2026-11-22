@@ -52,3 +52,5 @@
 [data-theme=charcoal] :is(.selected,.month-cell.selected,button[aria-pressed=true]){background:#654c39;color:#fff3e3;border-color:#ed9963}
 [data-theme=charcoal] :is(.now,.month-cell.today){border-color:#ffac72}
 [data-theme=charcoal] :is(.heads,.time,.hourline,.itemRow,.template-step){border-color:#696a6b}
+
+[data-theme=charcoal] :is(p.hint,body>p,.label){color:var(--muted)}

@@ -66,14 +66,18 @@
         function precisionFields(start, end) {
           return start % 10 || end % 10 ? { minutePrecision: true } : {};
         }
+        function requiredVersion({ days = {}, recurrences = [], dayTemplates = {} }) {
+          const precise = (b) => b?.minutePrecision === true && !b.imported && (b.start % 10 !== 0 || b.end % 10 !== 0);
+          return recurrences.some(precise) || Object.values(dayTemplates).some((t) => t.blocks.some(precise)) || Object.values(days).some((d) => d && (d.blocks?.some(precise) || Array.isArray(d.legacyActual) && d.legacyActual.some(precise))) ? 10 : 9;
+        }
         function timing(b) {
           return Number.isInteger(b.start) && Number.isInteger(b.end) && b.start >= 0 && b.end <= 1440 && (b.imported === true || b.minutePrecision === true || b.start % 10 === 0 && b.end % 10 === 0) && b.end > b.start;
         }
         function normalizeUnsafe(input) {
           if (!input) return fresh();
           let v = clone2(input);
-          if (Number.isInteger(v.version) && v.version > 9) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
-          if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
+          if (Number.isInteger(v.version) && v.version > 10) throw Object.assign(Error("This planner needs a newer version of Daymark (schema " + v.version + "). Update Daymark before opening or saving it."), { code: "NEWER_VERSION" });
+          if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(v.version) || !v.days || Array.isArray(v.days) || !Number.isInteger(v.start) || !Number.isInteger(v.end) || v.start < 0 || v.end > 24 || v.end <= v.start) throw Error("This is not a valid Daymark backup.");
           let categories = v.categories || { ...defaults, ...legacy };
           if (!Object.keys(categories).length) throw Error("No tasks found.");
           for (let [k, c] of Object.entries(categories)) {
@@ -171,6 +175,7 @@
           let affected = new Set(Array.isArray(v.holidayMigrationSeriesIds) ? v.holidayMigrationSeriesIds.filter((id) => out.recurrences.some((r) => r.id === id && r.skipDaysOff)) : []);
           for (let r of v.recurrences || []) if (r.skipDaysOff === void 0 && seriesHitsHoliday(out, r)) affected.add(r.id);
           if (affected.size) out.holidayMigrationSeriesIds = [...affected];
+          out.version = Math.max(v.version, requiredVersion(out));
           return out;
         }
         function normalize(input) {
@@ -319,6 +324,7 @@
             let key = data.dayTemplates[id] ? uuid() : id;
             data.dayTemplates[key] = { name: t.name, blocks: t.blocks.map((b) => ({ ...b, cat: mapping[b.cat] })) };
           }
+          data.version = Math.max(data.version, requiredVersion(data));
           return { data, report: report2 };
         }
         function recoverLegacy(input) {
@@ -550,9 +556,9 @@
           let first = date.slice(0, 7) + "-01", last = new Date(+date.slice(0, 4), +date.slice(5, 7), 0);
           return [...dates(first, dateKey(last), 31)];
         }
-        function shiftMonth(date, delta) {
+        function shiftMonth(date, delta, preferredDay) {
           let [y, m, d] = date.split("-").map(Number), next = new Date(y, m - 1 + delta, 1);
-          next.setDate(Math.min(d, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+          next.setDate(Math.min(preferredDay ?? d, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
           let result = dateKey(next);
           return isDate(result) ? result : date;
         }
@@ -575,7 +581,7 @@
           }
           return count;
         }
-        const api = { precisionFields, monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone: clone2, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
+        const api = { requiredVersion, precisionFields, monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone: clone2, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
         if (typeof module !== "undefined") module.exports = api;
         else root.PlannerCore = api;
       })(globalThis);
