@@ -2,7 +2,7 @@
 function mergeGroupedNotes(day,item){
   let changed=false,index=0;
   const ids=new Set(day.dailyNotes.map(n=>n.id));
-  for(const part of (item.notes||'').split(/\n\n(?=\[[ x]\] )/i)){
+  for(const part of (item.notes||'').split(/(?<= \(from \d{4}-\d{2}-\d{2}\))\n\n(?=\[[ x]\] )/i)){
     if(!part.trim())continue;
     const match=/^\[([ x])\] ([\s\S]*) \(from (\d{4}-\d{2}-\d{2})\)$/i.exec(part);
     const text=match?match[2]:part,originDate=match&&C.isDate(match[3])?match[3]:item.date;

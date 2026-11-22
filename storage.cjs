@@ -49,7 +49,7 @@ class PlannerStorage{
  }
  checkpoint(mode){
    const clear=mode==='clear-all'||mode==='clear-calendar';
-   if(mode==='clear-calendar'&&!this.cache.recurrences.length&&!Object.values(this.cache.days).some(day=>day.blocks.length))
+   if(mode==='clear-calendar'&&!this.cache.recurrences.length&&!Object.values(this.cache.days).some(day=>day.blocks.length||day.omitted?.some(id=>!id.startsWith('ics:'))||day.dailyNotes?.some(note=>note.links.length)))
      return {ok:true,empty:true};
    const equal=require('node:util').isDeepStrictEqual;
    if(mode==='clear-all'&&equal(Core.normalize(this.cache),Core.normalize(Core.fresh())))return {ok:true,empty:true};

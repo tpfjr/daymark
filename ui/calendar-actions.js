@@ -69,7 +69,7 @@ function splitWeekday(target,weekday,id){
   }
   for(const day of Object.values(data.days)){
     day.omitted=day.omitted.map(remap);
-    for(const note of day.dailyNotes)for(const link of note.links)link.id=remap(link.id);
+    for(const note of day.dailyNotes||[])for(const link of note.links)link.id=remap(link.id);
     for(const block of day.blocks)if(block.seriesId===original&&remap(block.id)!==block.id){
       block.id=remap(block.id);block.seriesId=id;
     }
@@ -130,7 +130,7 @@ function removeSeriesAndExceptions(id){
   const belongs=key=>exceptions.has(key)||key===C.occurrenceId(id,key.slice(-10));
   for(const day of Object.values(data.days)){
     day.omitted=day.omitted.filter(key=>!belongs(key));
-    for(const note of day.dailyNotes)note.links=note.links.filter(link=>!belongs(link.id));
+    for(const note of day.dailyNotes||[])note.links=note.links.filter(link=>!belongs(link.id));
   }
 }
 function clearPlannerDialog(){
@@ -149,7 +149,7 @@ function clearPlannerDialog(){
         else{
           data.recurrences=[];
           for(const day of Object.values(data.days)){
-            day.blocks=[];day.omitted=[];
+            day.blocks=[];day.omitted=day.omitted.filter(id=>id.startsWith('ics:'));
             for(const n of day.dailyNotes||[])n.links=[];
           }
         }
