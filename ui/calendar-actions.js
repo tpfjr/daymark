@@ -36,9 +36,6 @@ function dayActions(date) {
 }
 function templateFromDate(capture) {
   $('dateActions').close(); $('dayTemplates').click();
-  $('templateFrom').value=$('templateThrough').value=selected;
-  templateWeekdays(selected,true);
-  $('templateSkipDaysOff').checked=false; templateTargetSummary();
   if(capture){$('templateUseDay').click();$('dayTemplateName').focus()}
   else $('templateChoice').focus();
 }

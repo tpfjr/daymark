@@ -48,10 +48,30 @@ async function desktopTest(){
  await set('templateStart','23:55');await set('templateEnd','00:00');await click('templateAddBlock');
  assert.deepEqual(await p.evaluate(()=>templateDraft.map(b=>[b.start,b.end])),[[1435,1440]]);
  await click('closeDayTemplates');
+ // Open the actual toolbar dialog on a weekend and on a listed weekday holiday.
+ await p.evaluate(()=>mutate(()=>{data.dayTemplates.sample={name:'Practice',blocks:[{cat:'ms',start:600,end:630,notes:'',details:''}]};data.daysOff=['2027-02-01']}));
+ for(const target of ['2027-01-30','2027-02-01']){
+   await p.evaluate(d=>{selected=d;render();$('dayTemplates').click()},target);
+   assert.deepEqual(await p.evaluate(()=>templateTargets()),[target]);
+   assert.equal(await p.locator('#applySavedTemplate').isEnabled(),true);
+   assert.ok((await p.locator('#templateTargetSummary').innerText()).includes(target));
+   await click('applySavedTemplate');assert.equal(await p.evaluate(d=>C.blocks(data,d).length,target),1);
+   await set('templateThrough','2027-02-03');await p.locator('#templateThrough').dispatchEvent('change');
+   assert.deepEqual(await p.evaluate(()=>templateTargets()),['2027-02-02','2027-02-03']);
+   await click('closeDayTemplates');
+ }
+ await reset();
  await p.evaluate(({date,block})=>mutate(()=>C.put(data,date,block)),{date,block});
  let el=p.locator('[data-id=minute]').first();await el.focus();await el.press('ArrowDown');
  assert.equal(await p.evaluate(()=>C.blocks(data,selected)[0].start),555);
  assert.ok((await el.boundingBox()).height>=10);
+ // Exercise the three-minute block at its center with both resize grips still present.
+ const tiny=await el.boundingBox(),destination=await p.locator('.lane[data-date="'+tomorrow+'"]').boundingBox();
+ const cx=tiny.x+tiny.width/2,cy=tiny.y+tiny.height/2;
+ assert.ok(await p.evaluate(([x,y])=>!document.elementFromPoint(x,y).closest('.resize,.spread'),[cx,cy]));
+ await p.mouse.move(cx,cy);await p.mouse.down();await p.mouse.move(destination.x+destination.width/2,cy,{steps:8});await p.mouse.up();
+ assert.deepEqual(await p.evaluate(d=>C.blocks(data,d).map(b=>[b.start,b.end]),tomorrow),[[555,558]]);
+ await p.evaluate(()=>undo());
  const grip=el.locator('.resize:not(.resizeTop)');await grip.scrollIntoViewIfNeeded();const box=await grip.boundingBox();
  await p.mouse.move(box.x+box.width/2,box.y+box.height/2);await p.mouse.down();await p.mouse.move(box.x+box.width/2,box.y+box.height/2+30,{steps:7});await p.mouse.up();
  assert.ok(await p.evaluate(()=>C.blocks(data,selected)[0].end>558));
@@ -62,11 +82,13 @@ async function desktopTest(){
  await p.evaluate(()=>{const b=C.blocks(data,selected)[0];moveBlock(selected,C.shift(selected,3),b,545,575)});
  await p.evaluate(date=>{const t=C.shift(date,1),b=C.blocks(data,t)[0];mutate(()=>{C.removeOccurrence(data,t,b);C.put(data,t,{...b,start:600,end:630})});openEditor(selected,C.blocks(data,selected)[0])},date);
  await p.locator('#scope').selectOption('series');await set('from','08:35');await submit();
+ assert.equal(await p.evaluate(d=>data.days[C.shift(d,1)].blocks.find(b=>b.seriesId==='rec').start,date),600,'Tuesday keeps its separate override after editing the series from Thursday');
  assert.deepEqual(await p.evaluate(d=>[0,1,2,3].map(i=>C.blocks(data,C.shift(d,i)).map(b=>b.start)),date),[[515],[600],[515],[]]);
  await p.locator('.lane[data-date="'+date+'"] .block').click({modifiers:['Shift']});
  await p.locator('#selectionScope').selectOption('weekday');let question;
  p.once('dialog',async d=>{question=d.message();await d.accept()});await click('removeSelection');
  assert.ok(question.includes(date)&&/no end date/i.test(question));
+ assert.deepEqual(await p.evaluate(()=>data.recurrences.map(r=>r.weekdays)),[[2,3]],'Deleting Mondays retains Tuesday and Wednesday in the series');
  assert.deepEqual(await p.evaluate(d=>[0,1,2,7,8].map(i=>C.blocks(data,C.shift(d,i)).length),date),[0,1,1,0,1]);
  await reset();
  await p.evaluate(d=>mutate(()=>{for(const i of [1,3])C.put(data,C.shift(d,i),{id:'edge'+i,cat:'ms',details:'',notes:'match',start:605,end:615,minutePrecision:true})}),date);

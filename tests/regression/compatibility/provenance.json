@@ -8,5 +8,10 @@
     "version": "1.5.1",
     "source": "outputs/Daymark-1.5.1/Daymark-win32-x64/resources/app.asar :: ui/core.js",
     "sha256": "2d0dcc08ded83e022abb5da9554a64366c4a80ccdb50ad5b3a49cb3d924598b3"
+  },
+  {
+    "version": "1.12.0",
+    "source": "git 36a68f18f3f24db814eb959b13d268b8b4f03f64:ui/core.js",
+    "sha256": "d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b"
   }
 ]
