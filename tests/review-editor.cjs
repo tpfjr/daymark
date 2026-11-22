@@ -11,12 +11,12 @@ const {launch}=require('./native-harness.cjs');
       await submit();
       await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));
       if(repeat)await p.locator('#scope').selectOption('series');
-      await p.locator('#to').selectOption('430');await submit();
+      await p.locator('#to').fill('07:10');await submit();
       assert.deepEqual(await p.evaluate(()=>C.blocks(data,C.shift(selected,1)).map(b=>b.end)),[430]);
       assert.equal(await p.evaluate(()=>data.recurrences.length),repeat?2:0);
       if(repeat){
         await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));
-        await p.locator('#to').selectOption('410');await submit();
+        await p.locator('#to').fill('06:50');await submit();
         assert.deepEqual(await p.evaluate(()=>C.blocks(data,C.shift(selected,1)).map(b=>b.end)),[410]);
         assert.deepEqual(await p.evaluate(()=>C.blocks(data,C.shift(selected,8)).map(b=>b.end)),[430]);
       }
@@ -30,7 +30,7 @@ const {launch}=require('./native-harness.cjs');
       data.backlog.t={id:'t',title:'Sleep',done:true,cat:'ms',notes:''};
       C.put(data,selected,{id:'evening',cat:'ms',details:'Sleep',notes:'',backlogId:'t',taskDone:true,start:1320,end:1380});
     }));
-    await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));await p.locator('#to').selectOption('420');await submit();
+    await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));await p.locator('#to').fill('07:00');await submit();
     assert.deepEqual(await p.evaluate(()=>{const b=C.blocks(data,C.shift(selected,1))[0];return [!!b.backlogId,'taskDone' in b,taskTemplates().filter(t=>t.section==='Used before').length]}),[false,false,0]);
     await p.evaluate(()=>{const block=document.querySelector('.block');block.classList.add('multiSelected');block.dataset.id='stale';$('removeSelection').click()});
     assert.equal(await p.evaluate(()=>C.blocks(data,selected).length),1);

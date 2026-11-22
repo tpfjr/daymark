@@ -1,4 +1,4 @@
-// Daymark shared core SHA256: d476e827e1b5a70e2b1e238f587ab24cccc4c074dc73e07eae36a6dabb44a46b
+// Daymark shared core SHA256: 54a9fdf35a22f6d78e500a28ab00af2c94145f09843f75d133518e97ae1faddc
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
   try {
@@ -42,8 +42,11 @@ var require_core = __commonJS({
         if (!Number.isInteger(b.reminderMinutes) || b.reminderMinutes < 0 || b.reminderMinutes > 1440) throw Error("Invalid reminder: choose 0\u20131440 whole minutes.");
         return { reminderMinutes: b.reminderMinutes };
       }
+      function precisionFields(start, end) {
+        return start % 10 || end % 10 ? { minutePrecision: true } : {};
+      }
       function timing(b) {
-        return Number.isInteger(b.start) && Number.isInteger(b.end) && b.start >= 0 && b.end <= 1440 && (b.imported === true || b.start % 10 === 0 && b.end % 10 === 0) && b.end > b.start;
+        return Number.isInteger(b.start) && Number.isInteger(b.end) && b.start >= 0 && b.end <= 1440 && (b.imported === true || b.minutePrecision === true || b.start % 10 === 0 && b.end % 10 === 0) && b.end > b.start;
       }
       function normalizeUnsafe(input) {
         if (!input) return fresh();
@@ -77,7 +80,7 @@ var require_core = __commonJS({
           out.dayTemplates[id] = { name: t.name, blocks: t.blocks.map((b) => {
             if (!Object.hasOwn(categories, b.cat)) throw Error("Template " + t.name + " uses missing task category " + b.cat + ". Reassign its blocks before removing that task.");
             if (!timing(b) || typeof (b.details ?? "") !== "string" || typeof (b.notes ?? "") !== "string") throw Error("Invalid template block.");
-            return { cat: b.cat, details: b.details || "", notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {} };
+            return { cat: b.cat, details: b.details || "", notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.minutePrecision === true ? precisionFields(b.start, b.end) : {}, ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {} };
           }) };
         }
         for (let [id, t] of Object.entries(v.backlog || {})) {
@@ -102,7 +105,7 @@ var require_core = __commonJS({
             seen.add(b.id);
             let name = categories[b.cat][0], details = b.details ?? (b.title === name || b.cat === "break" && b.title === "Breaks" ? "" : b.title || "");
             if (typeof details !== "string") throw Error("Invalid entry details.");
-            day.blocks.push({ id: b.id, cat: b.cat, details, notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {}, ...b.seriesId ? { seriesId: b.seriesId } : {}, ...b.backlogId ? { backlogId: b.backlogId } : {}, ...typeof b.taskDone === "boolean" ? { taskDone: b.taskDone } : {} });
+            day.blocks.push({ id: b.id, cat: b.cat, details, notes: b.notes || "", start: b.start, end: b.end, ...reminderFields(b), ...b.minutePrecision === true ? precisionFields(b.start, b.end) : {}, ...b.imported === true ? { imported: true } : {}, ...b.allowOverlap === true ? { allowOverlap: true } : {}, ...b.seriesId ? { seriesId: b.seriesId } : {}, ...b.backlogId ? { backlogId: b.backlogId } : {}, ...typeof b.taskDone === "boolean" ? { taskDone: b.taskDone } : {} });
           }
           if (legacyCandidates.length || d.legacyActual) day.legacyActual = [];
           let quarantine = Array.isArray(d.legacyQuarantine) ? clone(d.legacyQuarantine) : [];
@@ -181,7 +184,7 @@ var require_core = __commonJS({
         let d = data.days[date] || emptyDay(), result = d.blocks.slice();
         for (let r of data.recurrences) {
           let id = occurrenceId(r.id, date);
-          if (applies(r, date) && !(r.skipDaysOff && isDayOff(data, date, off)) && !d.omitted.includes(id) && !result.some((b) => b.id === id)) result.push({ id, cat: r.cat, details: r.details, notes: r.notes, start: r.start, end: r.end, seriesId: r.id, ...reminderFields(r), ...r.imported ? { imported: true } : {}, ...r.allowOverlap === true ? { allowOverlap: true } : {}, generated: true });
+          if (applies(r, date) && !(r.skipDaysOff && isDayOff(data, date, off)) && !d.omitted.includes(id) && !result.some((b) => b.id === id)) result.push({ id, cat: r.cat, details: r.details, notes: r.notes, start: r.start, end: r.end, seriesId: r.id, ...r.minutePrecision ? precisionFields(r.start, r.end) : {}, ...reminderFields(r), ...r.imported ? { imported: true } : {}, ...r.allowOverlap === true ? { allowOverlap: true } : {}, generated: true });
         }
         return result.sort((a, b) => a.start - b.start);
       }
@@ -504,7 +507,7 @@ var require_core = __commonJS({
         return remove.size;
       }
       function captureDayTemplate(data, date, name) {
-        return { name, blocks: blocks(data, date).map(({ cat, details, notes, start, end, allowOverlap, imported, reminderMinutes }) => ({ cat, details, notes, start, end, ...reminderFields({ reminderMinutes }), ...imported ? { imported: true } : {}, ...allowOverlap === true ? { allowOverlap: true } : {} })) };
+        return { name, blocks: blocks(data, date).map(({ cat, details, notes, start, end, allowOverlap, imported, reminderMinutes, minutePrecision }) => ({ cat, details, notes, start, end, ...minutePrecision ? precisionFields(start, end) : {}, ...reminderFields({ reminderMinutes }), ...imported ? { imported: true } : {}, ...allowOverlap === true ? { allowOverlap: true } : {} })) };
       }
       function applyDayTemplate(data, id, date, uuid) {
         let template = data.dayTemplates?.[id];
@@ -534,7 +537,7 @@ var require_core = __commonJS({
       }
       function copyBlock(data, source, date, start, includeNotes, uuid) {
         if (!isDate(date) || !data.categories[source.cat]) throw Error("Choose a valid date and task.");
-        let block = { id: uuid(), cat: source.cat, details: source.details || "", notes: includeNotes ? source.notes || "" : "", start, end: start + source.end - source.start, ...includeNotes ? reminderFields(source) : {}, ...source.imported ? { imported: true } : {}, ...source.allowOverlap ? { allowOverlap: true } : {} };
+        let block = { ...precisionFields(start, start + source.end - source.start), id: uuid(), cat: source.cat, details: source.details || "", notes: includeNotes ? source.notes || "" : "", start, end: start + source.end - source.start, ...includeNotes ? reminderFields(source) : {}, ...source.imported ? { imported: true } : {}, ...source.allowOverlap ? { allowOverlap: true } : {} };
         if (!timing(block)) throw Error("The copied block must fit within one day. Choose an earlier start time.");
         put(data, date, block);
         data.start = Math.min(data.start, Math.floor(block.start / 60));
@@ -551,7 +554,7 @@ var require_core = __commonJS({
         }
         return count;
       }
-      const api = { monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
+      const api = { precisionFields, monthDates, shiftMonth, copyBlock, carryNotes, doubleBookings, carriedIndex, dates, isDayOff, layoutBlocks, carriedStatus, unresolvedOutcomes, oldCarriedItems, removeBacklog, captureDayTemplate, applyDayTemplate, workingDay, nextWorkingDay, csvCell, datePrefix, recoverLegacy, carryOutcomes, report, defaults, clone, dateKey, shift, isDate, emptyDay, fresh, normalize, timing, label, occurrenceId, applies, blocks, overlaps, removeOccurrence, put, week, recurrenceConflict, merge };
       if (typeof module2 !== "undefined") module2.exports = api;
       else root.PlannerCore = api;
     })(globalThis);

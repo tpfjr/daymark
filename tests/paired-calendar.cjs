@@ -15,7 +15,7 @@ const {launch}=require('./native-harness.cjs');
     await p.locator('#similarTime').fill('00:30');p.once('dialog',d=>d.accept());await p.locator('#applySimilar').click();
     assert.deepEqual(await p.evaluate(()=>C.blocks(data,C.shift(selected,1)).map(b=>b.start)),[30]);
     await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));await p.locator('#scope').selectOption('series');
-    await p.locator('#to').selectOption('430');await submit();
+    await p.locator('#to').fill('07:10');await submit();
     assert.deepEqual(await p.evaluate(()=>[1,3].map(n=>C.blocks(data,C.shift(selected,n)).map(b=>[b.start,b.end]))),[[[0,430]],[[0,420]]]);
     for(const repeat of [false,true]){
       await night(repeat);await p.evaluate(()=>openEditor(selected,C.blocks(data,selected)[0]));

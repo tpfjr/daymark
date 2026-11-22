@@ -15,7 +15,7 @@ const {launch}=require('./native-harness.cjs');
   }
   try{
     for(const accept of [true,false]){
-      await night();await p.locator('#to').selectOption('1410');
+      await night();await p.locator('#to').fill('23:30');
       let asked=false;p.once('dialog',d=>{asked=true;return accept?d.accept():d.dismiss()});await submit();
       assert.ok(asked,'offer choice for linked morning');assert.equal(await morning(),accept?0:1);
     }

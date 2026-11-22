@@ -137,7 +137,7 @@ const Core = require('../ui/core.js');
     assert.equal(await p.evaluate(()=>holidayBadge(selected).title),'New Year’s Day (observed)');
     await p.evaluate(()=>openEditor(selected,{cat:'ms',start:1380,end:1380}));
     await p.locator('#form button[type=submit]').click();assert(await p.locator('#error').innerText());
-    await p.locator('#to').selectOption('1440');await p.locator('#form button[type=submit]').click();
+    await p.locator('#to').fill('00:00');await p.locator('#form button[type=submit]').click();
     await p.evaluate(()=>flush());
     assert.equal(await p.evaluate(()=>C.blocks(data,'2028-01-01').length),0);
     console.log('PASS midnight, equal endpoints, overnight month/year/leap/DST dates, repeat bounds and observed holiday year edge');

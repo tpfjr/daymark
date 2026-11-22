@@ -14,7 +14,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('nod
    await p.locator('#heads button').nth(3).click();await p.locator('#saveDateTemplate').click();
    assert(await p.locator('#dayTemplateDialog').isVisible());await p.locator('#closeDayTemplates').click();
    await p.locator('.lane').nth(3).click({position:{x:15,y:30}});
-   await p.locator('#entryNotes').fill('Sleep');await p.locator('#from').selectOption('1380');await p.locator('#to').selectOption('420');
+   await p.locator('#entryNotes').fill('Sleep');await p.locator('#from').fill('23:00');await p.locator('#to').fill('07:00');
    await p.locator('#blockColor').fill('#445566');await p.locator('#form button[type=submit]').click();
    assert.deepEqual(await p.evaluate(()=>[data.days[selected].blocks[0].end,data.days[C.shift(selected,1)].blocks[0].end,data.categories.ms[1]]),[1440,420,'#445566']);
    await p.evaluate(()=>{mutate(()=>{day(selected).dailyNotes.push({id:'daily',originDate:selected,text:'Preserve me',done:false,links:[]})})});
